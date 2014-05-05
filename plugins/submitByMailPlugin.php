@@ -30,7 +30,7 @@
  * the terms of the BSD 2-Clause License, the licensors of this Program grant you 
  * additional permission to convey the resulting work. Corresponding Source for a 
  * non-source form of such a combination shall include the source code for the parts of 
- * mime_parser.php used as well as that of the covered work.
+ * mime_parser.php and pop3.php used as well as that of the covered work.
  *
  * For more information about how to use this plugin, see
  * http://resources.phplist.com/plugins/submitByMail .
@@ -135,13 +135,6 @@ class submitByMailPlugin extends phplistPlugin
   		return $key;
     }
     
-    function displayEditList($list) {
-    # purpose: return tablerows with list attributes for this list
-    # Currently used in list.php
-    # 200710 Bas
-    return null;
-  }
-
   function processEditList($id) {
     # purpose: process edit list page (usually save fields)
     # return false if failed
@@ -149,5 +142,27 @@ class submitByMailPlugin extends phplistPlugin
     return true;
   }
 
+    function displayEditList($list) {
+    # purpose: return tablerows with list attributes for this list
+    # Currently used in list.php
+    # 200710 Bas
+		$str = <<<EOD
+<fieldset>
+	<legend>Submit to $list[name] by Mail</legend>
+<p>	<label>Submission by mail allowed: <input type="radio" name="submitOK" value="Yes" />Yes&nbsp;&nbsp;&nbsp;&nbsp;
+	<input type="radio" name="submitOK" value="No" checked />No</label>
+</p>
+<p><label>Mail submission address:<input type="text" name="submitEmail" maxength="255" /></label>
+<label style="display:inline !important;">Username: <input type="text" name="uname" style="width:300px !important; display:inline !important;" maxength="255" /></label>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<label style="display:inline !important;">Password: <input type="text" name="pw" style="width:125px !important; display:inline !important;" maxength="255" /></label>
+<label>Collection method:&nbsp;&nbsp;<input type="radio" name="cmethod" value="POP" checked />POP&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="cmethod" value="Pipe" />Pipe</label>
+<label>What to do with submitted message:&nbsp;&nbsp;<input type="radio" name="mdisposal" value="Save" checked />Save&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="Queue" />Queue</label>
+<label>Confirm submission:&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" checked />Yes&nbsp;&nbsp;&nbsp;&nbsp;
+	<input type="radio" name="confirm" value="No" />No</label></p>
+</fieldset>
+EOD;
+		return $str;
+  }
+
 }
-?>
+?> <input type="radio" name="mdisposal" value="Queue" />Queue
