@@ -80,14 +80,9 @@ class submitByMailPlugin extends phplistPlugin
 		);  				// Structure of database tables for this plugin
 	
 	public $tables = array ('escrow', 'list');	// Table names are prefixed by Phplist	
-	public $topMenuLinks = array(
-    			'ldaimages' => array('category' => 'campaigns')
-    			); 
-  	public $pageTitles = array('ldaimages' => 'Manage Inline Images');
-  	
+	  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
   	public $escrowtbl, $listtbl;
-  	const NUMBER_PER_PAGE = 15;
   	
   	const ONE_DAY = 86400; 	// 24 hours in seconds
 
@@ -139,6 +134,25 @@ class submitByMailPlugin extends phplistPlugin
     # purpose: process edit list page (usually save fields)
     # return false if failed
     # 200710 Bas
+    if ($_POST['submitOK'] == 'No')		// Don't update if can't submit by email 
+    	return true;
+    $params = array (
+    				$id,
+    				1,
+    				$_POST['submitEmail'], 
+    				$_POST['uname'], 
+    				$_POST['pw'], 
+    				($_POST['cmethod'] == 'Pipe')? 1:0,
+    				($_POST['confirm'] == 'Yes')? 1: 0, 
+    				($_POST['mdisposal'] == 'queue')? 1: 0
+    				) ;
+    $query = sprintf("select * from %s where id=%d", $this->listtbl, $id);
+    if ($row = Sql_Fetch_Row_Query($query)){	// Already have this id in our list table?
+    	array_shift($params);
+    	$query = sprintf("update %s set mail_submit_ok=?, email=?, username=?, password=?, pipe_submission=?, confirm=?, queue=? where id=%d", $this->listtbl, $id);
+     } else 
+    	$query = sprintf ("insert into %s values (?, ?, ?, ?, ?, ?, ?, ?)", $this->listtbl); 
+    Sql_Query_Params($query, $params);
     return true;
   }
 
@@ -146,23 +160,69 @@ class submitByMailPlugin extends phplistPlugin
     # purpose: return tablerows with list attributes for this list
     # Currently used in list.php
     # 200710 Bas
+    
+    	// Set up defaults for form
+    	$eml = $user = $pass = $msyes = $pipe = $cfmno = $queue = '';
+    	$save = $pop = $cfmyes = $msno = $ckd = 'checked';
+    	if (isset($list['id'])) {
+    		$query = sprintf("select * from %s where id=%d", $this->listtbl, $list['id']);
+    		if ($row = Sql_Fetch_Assoc_Query($query)) {
+    			$eml = $row['email'];
+    			$user = $row['username'];
+    			$pass = $row['password'];
+    			if ($row['mail_submit_ok']) {
+    				$msyes = $ckd;
+    				$msno = '';
+    			} else {
+    				$msno = $ckd;
+    				$msyes = '';
+    			}
+    			if ($row['pipe_submission']) {
+    				$pipe = $ckd;
+    				$pop = '';
+    			} else {
+    				$pop = $ckd;
+    				$pipe = '';
+		   		}
+		    	if ($row['confirm']) {
+		   	 		$cfmyes = $ckd;
+		   	 		$cmno = '';
+		    	} else {
+		    		$cfmno = $ckd;
+		    		$cfmyes = '';
+		    	}
+				if ($row['queue']) {
+					$queue = $ckd;
+					$save = '';
+				} else {
+					$save = $ckd;
+					$queue = '';
+				}
+			}
+		}
 		$str = <<<EOD
 <fieldset>
 	<legend>Submit to $list[name] by Mail</legend>
-<p>	<label>Submission by mail allowed: <input type="radio" name="submitOK" value="Yes" />Yes&nbsp;&nbsp;&nbsp;&nbsp;
-	<input type="radio" name="submitOK" value="No" checked />No</label>
+<p>	<label>Submission by mail allowed: <input type="radio" name="submitOK" value="Yes" $msyes />Yes&nbsp;&nbsp;&nbsp;&nbsp;
+	<input type="radio" name="submitOK" value="No" $msno />No</label>
 </p>
-<p><label>Mail submission address:<input type="text" name="submitEmail" maxength="255" /></label>
-<label style="display:inline !important;">Username: <input type="text" name="uname" style="width:300px !important; display:inline !important;" maxength="255" /></label>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<label style="display:inline !important;">Password: <input type="text" name="pw" style="width:125px !important; display:inline !important;" maxength="255" /></label>
-<label>Collection method:&nbsp;&nbsp;<input type="radio" name="cmethod" value="POP" checked />POP&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="cmethod" value="Pipe" />Pipe</label>
-<label>What to do with submitted message:&nbsp;&nbsp;<input type="radio" name="mdisposal" value="Save" checked />Save&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="Queue" />Queue</label>
-<label>Confirm submission:&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" checked />Yes&nbsp;&nbsp;&nbsp;&nbsp;
-	<input type="radio" name="confirm" value="No" />No</label></p>
+<p>
+<label>Mail submission address:<input type="text" name="submitEmail" value="$eml" maxlength="255" /></label>
+<label style="display:inline !important;">Username: <input type="text" name="uname" style="width:300px !important; 
+display:inline !important;" value="$user" maxength="255" /></label>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<label style="display:inline !important;">Password: <input type="text" name="pw" 
+style="width:125px !important; display:inline !important;" value="$pass" maxength="255" /></label>
+
+<label>Collection method:&nbsp;&nbsp;<input type="radio" name="cmethod" value="POP" $pop />POP
+&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="cmethod" value="Pipe" $pipe />Pipe</label>
+<label>What to do with submitted message:&nbsp;&nbsp;<input type="radio" name="mdisposal" 
+value="save" $save />Save&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="queue" $queue />Queue</label>
+<label>Confirm submission:&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" $cfmyes />Yes&nbsp;&nbsp;&nbsp;&nbsp;
+	<input type="radio" name="confirm" value="No" $cfmno />No</label></p>
 </fieldset>
 EOD;
 		return $str;
   }
 
 }
-?> <input type="radio" name="mdisposal" value="Queue" />Queue
+?>
