@@ -1,0 +1,1 @@
+SELECT count(*) FROM `Subscribers` WHERE `Email`!='' AND `Email` IS NOT NULL AND `Subscriber`='Yes' AND `Member`=13 AND (`Status` is NULL OR `Status`='') 

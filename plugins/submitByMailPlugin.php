@@ -134,24 +134,30 @@ class submitByMailPlugin extends phplistPlugin
     # purpose: process edit list page (usually save fields)
     # return false if failed
     # 200710 Bas
-    if ($_POST['submitOK'] == 'No')		// Don't update if can't submit by email 
-    	return true;
     $params = array (
     				$id,
     				1,
-    				$_POST['submitEmail'], 
-    				$_POST['uname'], 
-    				$_POST['pw'], 
+    				trim($_POST['submitEmail']), 
+    				trim($_POST['uname']), 
+    				trim($_POST['pw']), 
     				($_POST['cmethod'] == 'Pipe')? 1:0,
     				($_POST['confirm'] == 'Yes')? 1: 0, 
     				($_POST['mdisposal'] == 'queue')? 1: 0
     				) ;
     $query = sprintf("select * from %s where id=%d", $this->listtbl, $id);
     if ($row = Sql_Fetch_Row_Query($query)){	// Already have this id in our list table?
-    	array_shift($params);
-    	$query = sprintf("update %s set mail_submit_ok=?, email=?, username=?, password=?, pipe_submission=?, confirm=?, queue=? where id=%d", $this->listtbl, $id);
-     } else 
+    	if (!strlen($params[2])) {	// No email submission address means delete old data
+    		$params = array();
+    		$query = sprintf("delete from %s where id = %d", $this->listtbl, $id);
+    	} else {
+    		array_shift($params);
+    		$query = sprintf("update %s set mail_submit_ok=?, email=?, username=?, password=?, pipe_submission=?, confirm=?, queue=? where id=%d", $this->listtbl, $id);
+    	}
+	} else {
+		if (!strlen($params[2]))	// No data for submission by email
+    		return true;
     	$query = sprintf ("insert into %s values (?, ?, ?, ?, ?, ?, ?, ?)", $this->listtbl); 
+    }
     Sql_Query_Params($query, $params);
     return true;
   }
