@@ -43,6 +43,115 @@ require_once(dirname(__FILE__)."/submitByMailPlugin/mime/rfc822_addresses.php");
 require_once(dirname(__FILE__)."/submitByMailPlugin/mime/mime_parser.php");
 require_once(dirname(__FILE__)."/submitByMailPlugin/pop3/pop3.php");
 
+// Define a class allowing each decoded message to be treated as an object
+// The constructor is called with a string representing the entire message to be
+// decoded. Decoding sets public variables containing the relevant parts of the message
+// with flags or properties defining what we have in the message.
+// An instance of this class is created only after we know that we have a message from
+// a valid list owner or superuser sent to an existing list.
+class decodedMessage extends mime_parser_class {	// Manuel Lemos' decoder class
+	public $inlineImages = array();
+	public $attachments = array();
+	public $message = array();
+	
+	private function clean($str) {
+		return strtolower(trim($str));
+	}
+	
+	// Remove <!DOCTYPE...>, <html...>, <head...>...</head>, <body...>, </body>, </html> tags
+	// from submitted message to be stored
+	function cleanHtml($str) {
+		$patterns = array(
+						'#.*<body.*>#Uis',
+						'#</body>#i',
+						'#</html>#i'
+					);
+		foreach ($patterns as $pat)			
+			$str = preg_replace($pat, '', $str);
+		return $str;
+	}
+	
+	function __construct($str) {
+		$sbm = $GLOBALS["plugins"]['submitByMailPlugin']; 	// The submitByMailPlugin instance
+		$this->mbox = 0;	// Set to 0 for parsing a single message file
+    	$this->decode_bodies = 1;	// Set to 1 for decoding the message bodies
+		$this->ignore_syntax_errors = 1;	
+    	$this->track_lines = 0;	// Set to 0 to avoid keeping track of the lines of the message data
+    	$this->use_part_file_names = 0;	// Set to 1 to make message parts be saved with original file names
+    								// when the SaveBody parameter is used
+		$this->custom_mime_types = array(	//MIME types not yet recognized by the Analyze class function.
+    	    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'=>array(
+        	    'Type' => 'ms-word',
+            	'Description' => 'Word processing document in Microsoft Office OpenXML format'
+        	)
+    	);
+
+    	$parameters=array(
+        	'Data'=> $str,	// Input data from string rather than a file
+        	'SkipBody'=>0	// Do not retrieve or save message body parts
+    	);
+    
+    	if ($this->Decode($parameters, $decoded)) {
+    		if (!$this->Analyze($decoded[0], $uncodedMsg))
+    			throw new Exception($this->error);
+    	} else
+			throw new Exception($this->error);
+			
+		$this->message['subject'] = $uncodedMsg['Subject'];
+		$fromFld = $uncodedMsg['From'][0];
+		if (isset($fromFld['name']) && (trim($fromFld['name'])))
+			$this->message['from']['name'] = $fromFld['name'];
+		$this->message['from']['address'] = $fromFld['address'];
+			
+		foreach ($uncodedMsg['To'] as $val)
+			$this->message['to'][] = $val['address'];
+		
+		if (!preg_match('/(html|text)/i', $uncodedMsg['Type'], $match))
+			throw new Exception("Submitted message not text or html");
+		$this->message['is_html'] = (strtolower($match[1]) == 'html');
+		
+		if ($this->message['is_html'])
+			$this->message['content'] = $this->cleanHtml($uncodedMsg['Data']);
+		else {	
+			$this->message['content'] = $uncodedMsg['Data'];
+			$this->message['encoding'] = (isset($uncodedMsg['Encoding'])?$uncodedMsg['Encoding']:'UTF-8');
+		}
+			
+		if ($uncodedMsg['Related']) {	// Inline files
+			foreach ($uncodedMsg['Related'] as $val) {															
+				if ($val['Type'] == 'image') { // Only keep inline image files, no others allowed
+					$temp['filename'] = $val['FileName'];
+					$temp['cid'] = $val['ContentID'];
+					$temp['content'] = $val['Data'];
+					$this->message['images'][] = $temp;
+				}
+			}
+		}
+		
+		if ($uncodedMsg['Attachments']) {
+			foreach ($uncodedMsg['Attachments'] as $val) {
+				$is_html = false;
+				if ($val['FileName'])
+					$temp['filename'] = $val['FileName'];
+				else if (preg_match('/(html|text)/i', $val['Type'], $match)) { // No file name: we'll
+																	 	// combine with the message
+																	 	// as an inline attachment
+					$temp['Type'] = $val['Type'];
+					$is_html = (strtolower($match[1]) == 'html');
+				} else
+					throw new Exception('Unknown inline type. Cannot handle.');	
+				if ($is_html)	
+					$temp['content'] = $this->cleanHtml($val['Data']);								
+				else {
+					$temp['content'] = $val['Data'];
+					$temp['encoding'] = (isset($val['Encoding'])?$val['Encoding']:'UTF-8');
+				}
+				$this->message['attachments'][] = $temp;	
+			}
+		}				
+  	}
+}
+
 /**
  * Registers the plugin with phplist
  * 
@@ -75,7 +184,9 @@ class submitByMailPlugin extends phplistPlugin
 				"password" => array ("varchar(255)","Password associated with the user name"),
 				"pipe_submission" => array ("tinyint default 0", "Flags messages are submitted by a pipe from the POP3 server"),
 				"confirm" => array ("tinyint default 1", "Flags email submissions are escrowed for confirmation by submitter"),
-				"queue" => array ("tinyint default 0", "Flags that messages are queued immediately rather than being saved as drafts")
+				"queue" => array ("tinyint default 0", "Flags that messages are queued immediately rather than being saved as drafts"),
+				"template" => array("integer default 0", "Template to use with messages submitted to this address"),
+				"footer" => array("text","Footer for a message submitted to this address")
 			)
 		);  				// Structure of database tables for this plugin
 	
@@ -85,12 +196,8 @@ class submitByMailPlugin extends phplistPlugin
   	public $escrowtbl, $listtbl;
   	
   	const ONE_DAY = 86400; 	// 24 hours in seconds
-
-    function adminmenu() {
-    	return array ("ldaimages" => "Manage Inline Images");
-  	}
-
-	function __construct()
+  	
+  	function __construct()
     {
     	$this->coderoot = dirname(__FILE__) . '/submitByMailPlugin/';
 		
@@ -170,6 +277,9 @@ class submitByMailPlugin extends phplistPlugin
     	// Set up defaults for form
     	$eml = $user = $pass = $msyes = $pipe = $cfmno = $queue = '';
     	$save = $pop = $cfmyes = $msno = $ckd = 'checked';
+    	$tmplt = 0;
+    	$footer = getConfig('messagefooter');
+    	
     	if (isset($list['id'])) {
     		$query = sprintf("select * from %s where id=%d", $this->listtbl, $list['id']);
     		if ($row = Sql_Fetch_Assoc_Query($query)) {
@@ -204,11 +314,37 @@ class submitByMailPlugin extends phplistPlugin
 					$save = $ckd;
 					$queue = '';
 				}
+				if ($row['template'])
+					$tmplt = $row['template'];
+				if ($row['footer'])
+					$footer = $row['footer'];
 			}
 		}
+		
+		$req = Sql_Query("select id,title from {$GLOBALS['tables']['template']} order by listorder");
+  		$templates_available = Sql_Num_Rows($req);
+  		if ($templates_available) {
+  			$template_form = '<p><div class="field"><label for="template">Template to use for messages submitted through this address:</label>
+  			<select name="template"><option value="0">-- Use None</option>';
+    		$req = Sql_Query("select id,title, listorder from {$GLOBALS['tables']['template']} order by listorder");
+			while ($row = Sql_Fetch_Assoc($req)) {   // need to fix lines below
+      			if ($row["title"]) {
+        			$template_form .= sprintf('<option value="%d" %s>%s</option>',$row["id"], 
+        				$row["id"]==$tmplt?'selected="selected"':'',$row["title"]);
+        		}
+        	}
+        	$template_form .= '</select></div></p>';
+        } else
+        	$template_form = '';
+        	
+        $footer_form = '<p><div class="field"><label for="footer">Footer to be used for messages submitted through this address:</label>
+   <textarea name="footer" cols="65" rows="5">'. htmlspecialchars($footer).'</textarea></div></p>';
+   		$hr = '<hr style="height:1px; border:none; color:#000; background-color:#000; width:80%; text-align:right; margin: 0 auto 10px 0;"/>';
+
 		$str = <<<EOD
+$hr
 <fieldset>
-	<legend>Submit to $list[name] by Mail</legend>
+	<legend style="text-align:center; font-size:18px; color:DarkBlue;margin-bottom:15px;">Submit to $list[name] by Mail</legend>
 <p>	<label>Submission by mail allowed: <input type="radio" name="submitOK" value="Yes" $msyes />Yes&nbsp;&nbsp;&nbsp;&nbsp;
 	<input type="radio" name="submitOK" value="No" $msno />No</label>
 </p>
@@ -224,11 +360,13 @@ style="width:125px !important; display:inline !important;" value="$pass" maxengt
 <label>What to do with submitted message:&nbsp;&nbsp;<input type="radio" name="mdisposal" 
 value="save" $save />Save&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="queue" $queue />Queue</label>
 <label>Confirm submission:&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" $cfmyes />Yes&nbsp;&nbsp;&nbsp;&nbsp;
-	<input type="radio" name="confirm" value="No" $cfmno />No</label></p>
+	<input type="radio" name="confirm" value="No" $cfmno />No</label></p>$template_form $footer_form
 </fieldset>
+$hr
 EOD;
 		return $str;
-  }
-
+  } 
 }
+
+
 ?>
