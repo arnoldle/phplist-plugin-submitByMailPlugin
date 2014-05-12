@@ -249,7 +249,9 @@ class submitByMailPlugin extends phplistPlugin
     				trim($_POST['pw']), 
     				($_POST['cmethod'] == 'Pipe')? 1:0,
     				($_POST['confirm'] == 'Yes')? 1: 0, 
-    				($_POST['mdisposal'] == 'queue')? 1: 0
+    				($_POST['mdisposal'] == 'queue')? 1: 0,
+    				$_POST['template'],
+    				trim($_POST['footer'])
     				) ;
     $query = sprintf("select * from %s where id=%d", $this->listtbl, $id);
     if ($row = Sql_Fetch_Row_Query($query)){	// Already have this id in our list table?
@@ -258,12 +260,12 @@ class submitByMailPlugin extends phplistPlugin
     		$query = sprintf("delete from %s where id = %d", $this->listtbl, $id);
     	} else {
     		array_shift($params);
-    		$query = sprintf("update %s set mail_submit_ok=?, email=?, username=?, password=?, pipe_submission=?, confirm=?, queue=? where id=%d", $this->listtbl, $id);
+    		$query = sprintf("update %s set mail_submit_ok=?, email=?, username=?, password=?, pipe_submission=?, confirm=?, queue=?, template=?, footer=? where id=%d", $this->listtbl, $id);
     	}
 	} else {
 		if (!strlen($params[2]))	// No data for submission by email
     		return true;
-    	$query = sprintf ("insert into %s values (?, ?, ?, ?, ?, ?, ?, ?)", $this->listtbl); 
+    	$query = sprintf ("insert into %s values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", $this->listtbl); 
     }
     Sql_Query_Params($query, $params);
     return true;
@@ -314,10 +316,8 @@ class submitByMailPlugin extends phplistPlugin
 					$save = $ckd;
 					$queue = '';
 				}
-				if ($row['template'])
-					$tmplt = $row['template'];
-				if ($row['footer'])
-					$footer = $row['footer'];
+				$tmplt = $row['template'];
+				$footer = $row['footer'];
 			}
 		}
 		
