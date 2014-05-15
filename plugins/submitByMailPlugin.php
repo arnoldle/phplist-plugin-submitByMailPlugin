@@ -36,7 +36,7 @@
  * http://resources.phplist.com/plugins/submitByMail .
  * 
  */
- 
+
 // Manuel Lemos' files for POP3 and Mime decoding. We don't use PEAR because we cannot
 // count on it being available at all sites running Phplist
 require_once(dirname(__FILE__)."/submitByMailPlugin/mime/rfc822_addresses.php");
@@ -194,7 +194,9 @@ class submitByMailPlugin extends phplistPlugin
 	  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
   	public $escrowtbl, $listtbl;
-  	
+  	public $target; 	// The ID of the list targetted by the current message
+	public $owner;		// The ID of the owner of the current message
+	
   	const ONE_DAY = 86400; 	// 24 hours in seconds
   	
   	function __construct()
@@ -253,6 +255,7 @@ class submitByMailPlugin extends phplistPlugin
     				$_POST['template'],
     				trim($_POST['footer'])
     				) ;
+// We must forbid two lists from using the same email address. There is a world of complication otherwise!!
     $query = sprintf("select * from %s where id=%d", $this->listtbl, $id);
     if ($row = Sql_Fetch_Row_Query($query)){	// Already have this id in our list table?
     	if (!strlen($params[2])) {	// No email submission address means delete old data
@@ -265,6 +268,13 @@ class submitByMailPlugin extends phplistPlugin
 	} else {
 		if (!strlen($params[2]))	// No data for submission by email
     		return true;
+    	$query = sprintf("select id from %s where email='%s'", $this->listtbl, $_POST['submitEmail']);
+    	if ($row = Sql_Fetch_Row_Query($query)) {
+    		$query = sprintf("select name from %s where id = %d", $GLOBALS['tables']['list'], $row[0]);
+    		$row = Sql_Fetch_Row_Query($query);
+    		Warn ("The address you have entered belongs to the list &quot;{$row[0]}&quot;. Message submission by email is not enabled for the list &quot;" . $_POST['listname'] . '&quot;.');
+    		return false;
+    	}
     	$query = sprintf ("insert into %s values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", $this->listtbl); 
     }
     Sql_Query_Params($query, $params);
@@ -275,7 +285,7 @@ class submitByMailPlugin extends phplistPlugin
     # purpose: return tablerows with list attributes for this list
     # Currently used in list.php
     # 200710 Bas
-    
+     
     	// Set up defaults for form
     	$eml = $user = $pass = $msyes = $pipe = $cfmno = $queue = '';
     	$save = $pop = $cfmyes = $msno = $ckd = 'checked';
@@ -341,10 +351,11 @@ class submitByMailPlugin extends phplistPlugin
    <textarea name="footer" cols="65" rows="5">'. htmlspecialchars($footer).'</textarea></div></p>';
    		$hr = '<hr style="height:1px; border:none; color:#000; background-color:#000; width:80%; text-align:right; margin: 0 auto 10px 0;"/>';
 
+		$ln = trim($list['name'])? $list['name']: 'This List';
 		$str = <<<EOD
 $hr
 <fieldset>
-	<legend style="text-align:center; font-size:18px; color:DarkBlue;margin-bottom:15px;">Submit to $list[name] by Mail</legend>
+	<legend style="text-align:center; font-size:18px; color:DarkBlue;margin-bottom:15px;">Submit to $ln by Mail</legend>
 <p>	<label>Submission by mail allowed: <input type="radio" name="submitOK" value="Yes" $msyes />Yes&nbsp;&nbsp;&nbsp;&nbsp;
 	<input type="radio" name="submitOK" value="No" $msno />No</label>
 </p>
@@ -365,8 +376,83 @@ value="save" $save />Save&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisp
 $hr
 EOD;
 		return $str;
-  } 
+  }
+  
+  /* 
+  foreach($theMsg['to'] as $val) {
+			$query = sprintf("select id from $listtbl where email='%s'", $val['address']);
+			if ($row = Sql_Fetch_Row_Query($query)) {
+				$target = $row[0];		// ID of the target list 
+				break;
+			}
+		}  */
+  
+  	// Here we save the decoded message. Before this function is called we have verified
+  	// that everything in the submitted message is kosher. So we do not have to do much
+  	// error checking here.
+	private function saveMessage(decodedMessage $theMsg) {
+		$fields = array ("subject", "fromfield", "tofield", "replyto", "message", 
+					"footer", "entered", "modified", "embargo", "repeatinterval", 
+					"repeatuntil", "requeueinterval", "requeueuntil", "status", 
+					"htmlformatted", "sendformat", "template", "owner"); // Column names in message table
+		$messagedata = array();
+		foreach ($fields as $val)
+			$messagedata[$val] ='';
+		
+		// Get the $listtbl items 
+		$query = sprintf("select queue, template, footer from $listtbl where id=%d", $this->target);
+		$rsrc = Sql_Query ($query);
+		$row = Sql_Fetch_Assoc ($rsrc);
+		$messagedata['template'] = $row['template'];
+		$messagedata['footer'] = $row['footer'];
+		$messagedata['owner'] = $this->owner;
+		if ($row['queue'])
+			$messagedata['status'] = 'submitted';
+		else
+			$messagedata['status'] = 'draft';
+		
+		// Now get the material from this message
+		$messagedata['subject'] = $theMsg['subject'];
+		if ($theMsg['is_html']) {
+			$messagedata["sendformat"] = 'HTML';
+			$messagedata['htmlformatted'] = 1;
+		} else {
+			$messagedata["sendformat"] = 'text';
+			$messagedata['htmlformatted'] = 0;
+		}
+		if ($theMsg['from']['name'])
+			$messagedata['fromfield'] = $theMsg['from']['name'] . '<' . $theMsg['from']['address'] . '>';
+		else
+			$messagedata['fromfield'] = $theMsg['from']['address'];
+		$messagedata['repeatinterval'] = $messagedata['requeueinterval'] = 0;
+		$messagedata['message'] = $theMsg['content'];
+		// Default time zone for PHP should have been set earlier by connect.php
+		$messagedata['embargo'] = $messagedata["repeatuntil"] = $messagedata['requeueuntil'] = date('Y-m-d h:i');
+		
+		// Put all this into the message table. We need the ID of this message to
+		// process the attachments. We may have to update the message in the database 
+		// later
+		$query = sprintf("insert into %s (", $GLOBALS['tables']['message']);
+		$query2 = " values (";
+		$params = array ();
+		foreach ($fields as $val) {
+			$query .= $val . ', ';
+			$params[] = $messagedata[$val];
+			$query2 .= '?, ';
+		}
+		$query = rtrim($query); $query2 = rtrim($query2);
+		$query = rtrim($query, ',') . ')' . rtrim($query2, ',') . ')';
+ 		$query .= " values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+ 		Sql_Query_Params($query, $params);
+ 		$msgid = Sql_Insert_Id();
+ 		
+ 		//Now we are ready to deal with the attachments
+ 		if (ALLOW_ATTACHMENTS) {
+ 			$attachdir = $GLOBALS['attachment_repository'];
+ 		}
+ 	}
+
+// UPLOADIMAGES_DIR		
+
 }
-
-
 ?>
