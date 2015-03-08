@@ -23,134 +23,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  *
- * Additional permission under GNU GPL version 3 section 7
- *
- * If you modify this Program, or any covered work, by linking or combining it with
- * mime_parser.php (or a modified version of that library), containing parts covered by
- * the terms of the BSD 2-Clause License, the licensors of this Program grant you 
- * additional permission to convey the resulting work. Corresponding Source for a 
- * non-source form of such a combination shall include the source code for the parts of 
- * mime_parser.php and pop3.php used as well as that of the covered work.
- *
  * For more information about how to use this plugin, see
  * http://resources.phplist.com/plugins/submitByMail .
  * 
  */
 
-// Manuel Lemos' files for POP3 and Mime decoding. We don't use PEAR because we cannot
-// count on it being available at all sites running Phplist
-require_once(dirname(__FILE__)."/submitByMailPlugin/mime/rfc822_addresses.php");
-require_once(dirname(__FILE__)."/submitByMailPlugin/mime/mime_parser.php");
-require_once(dirname(__FILE__)."/submitByMailPlugin/pop3/pop3.php");
-
-// Define a class allowing each decoded message to be treated as an object
-// The constructor is called with a string representing the entire message to be
-// decoded. Decoding sets public variables containing the relevant parts of the message
-// with flags or properties defining what we have in the message.
-// An instance of this class is created only after we know that we have a message from
-// a valid list owner or superuser sent to an existing list.
-class decodedMessage extends mime_parser_class {	// Manuel Lemos' decoder class
-	public $inlineImages = array();
-	public $attachments = array();
-	public $message = array();
-	
-	private function clean($str) {
-		return strtolower(trim($str));
-	}
-	
-	// Remove <!DOCTYPE...>, <html...>, <head...>...</head>, <body...>, </body>, </html> tags
-	// from submitted message to be stored
-	function cleanHtml($str) {
-		$patterns = array(
-						'#.*<body.*>#Uis',
-						'#</body>#i',
-						'#</html>#i'
-					);
-		foreach ($patterns as $pat)			
-			$str = preg_replace($pat, '', $str);
-		return $str;
-	}
-	
-	function __construct($str) {
-		$sbm = $GLOBALS["plugins"]['submitByMailPlugin']; 	// The submitByMailPlugin instance
-		$this->mbox = 0;	// Set to 0 for parsing a single message file
-    	$this->decode_bodies = 1;	// Set to 1 for decoding the message bodies
-		$this->ignore_syntax_errors = 1;	
-    	$this->track_lines = 0;	// Set to 0 to avoid keeping track of the lines of the message data
-    	$this->use_part_file_names = 0;	// Set to 1 to make message parts be saved with original file names
-    								// when the SaveBody parameter is used
-		$this->custom_mime_types = array(	//MIME types not yet recognized by the Analyze class function.
-    	    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'=>array(
-        	    'Type' => 'ms-word',
-            	'Description' => 'Word processing document in Microsoft Office OpenXML format'
-        	)
-    	);
-
-    	$parameters=array(
-        	'Data'=> $str,	// Input data from string rather than a file
-        	'SkipBody'=>0	// Do not retrieve or save message body parts
-    	);
-    
-    	if ($this->Decode($parameters, $decoded)) {
-    		if (!$this->Analyze($decoded[0], $uncodedMsg))
-    			throw new Exception($this->error);
-    	} else
-			throw new Exception($this->error);
-			
-		$this->message['subject'] = $uncodedMsg['Subject'];
-		$fromFld = $uncodedMsg['From'][0];
-		if (isset($fromFld['name']) && (trim($fromFld['name'])))
-			$this->message['from']['name'] = $fromFld['name'];
-		$this->message['from']['address'] = $fromFld['address'];
-			
-		foreach ($uncodedMsg['To'] as $val)
-			$this->message['to'][] = $val['address'];
-		
-		if (!preg_match('/(html|text)/i', $uncodedMsg['Type'], $match))
-			throw new Exception("Submitted message not text or html");
-		$this->message['is_html'] = (strtolower($match[1]) == 'html');
-		
-		if ($this->message['is_html'])
-			$this->message['content'] = $this->cleanHtml($uncodedMsg['Data']);
-		else {	
-			$this->message['content'] = $uncodedMsg['Data'];
-			$this->message['encoding'] = (isset($uncodedMsg['Encoding'])?$uncodedMsg['Encoding']:'UTF-8');
-		}
-			
-		if ($uncodedMsg['Related']) {	// Inline files
-			foreach ($uncodedMsg['Related'] as $val) {															
-				if ($val['Type'] == 'image') { // Only keep inline image files, no others allowed
-					$temp['filename'] = $val['FileName'];
-					$temp['cid'] = $val['ContentID'];
-					$temp['content'] = $val['Data'];
-					$this->message['images'][] = $temp;
-				}
-			}
-		}
-		
-		if ($uncodedMsg['Attachments']) {
-			foreach ($uncodedMsg['Attachments'] as $val) {
-				$is_html = false;
-				if ($val['FileName'])
-					$temp['filename'] = $val['FileName'];
-				else if (preg_match('/(html|text)/i', $val['Type'], $match)) { // No file name: we'll
-																	 	// combine with the message
-																	 	// as an inline attachment
-					$temp['Type'] = $val['Type'];
-					$is_html = (strtolower($match[1]) == 'html');
-				} else
-					throw new Exception('Unknown inline type. Cannot handle.');	
-				if ($is_html)	
-					$temp['content'] = $this->cleanHtml($val['Data']);								
-				else {
-					$temp['content'] = $val['Data'];
-					$temp['encoding'] = (isset($val['Encoding'])?$val['Encoding']:'UTF-8');
-				}
-				$this->message['attachments'][] = $temp;	
-			}
-		}				
-  	}
-}
 
 /**
  * Registers the plugin with phplist
@@ -178,9 +55,8 @@ class submitByMailPlugin extends phplistPlugin
 			),
 			'list' => array(
 				"id" => array("integer not null primary key", "ID of the list associated with the email address"),
-				"mail_submit_ok" => array ("tinyint default 0", "Flags messages can be submitted by email"),
-				"email" => array ("varchar(255) not null", "Email address for message submission to a list"),
-				"username" => array ("varchar(255) not null", "User name for signing into POP3 server"),
+				"pop3server" => array ("varchar(255) not null", "Server collecting list submissions"),
+				"submissionadr" => array ("varchar(255) not null", "Email address for list submission"),
 				"password" => array ("varchar(255)","Password associated with the user name"),
 				"pipe_submission" => array ("tinyint default 0", "Flags messages are submitted by a pipe from the POP3 server"),
 				"confirm" => array ("tinyint default 1", "Flags email submissions are escrowed for confirmation by submitter"),
@@ -190,93 +66,144 @@ class submitByMailPlugin extends phplistPlugin
 			)
 		);  				// Structure of database tables for this plugin
 	
-	public $tables = array ('escrow', 'list');	// Table names are prefixed by Phplist	
+	public $tables = array ();	// Table names are prefixed by Phplist
+	public $commandlinePages = array ('receiveMsg',);
+	public $pagesTitles = array ("configure_a_list" => "Configure a List for Submission by Email");
+	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'));	
 	  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
   	public $escrowtbl, $listtbl;
   	public $target; 	// The ID of the list targetted by the current message
 	public $owner;		// The ID of the owner of the current message
+	public $check = array ('authSender', 'checkTo', 'owner', 'mailSubmit', 'pipeOK', 'attachOK', 'inlineOK');
+	public $pipesubmission = 0;
+	
+	public $numberPerList = 20;		// Number of lists tabulated per page in listing
+	
 	
   	const ONE_DAY = 86400; 	// 24 hours in seconds
+  	
+  	function adminmenu() {
+    	return array (
+      		"configure_a_list" => "Configure a List for Submission by Email",
+      	    );
+	}
   	
   	function __construct()
     {
     	$this->coderoot = dirname(__FILE__) . '/submitByMailPlugin/';
 		
-		$this->escrowdir = $this->coderoot . "escrow";
+		$this->escrowdir = $this->coderoot . "escrow/";
 		if (!is_dir($this->escrowdir))
 			mkdir ($this->escrowdir);
             	
 		parent::__construct();
     }
     
-    function activate() {
-    	$this->escrowtbl = $GLOBALS['tables']['submitByMailPlugin_escrow'];  	
-    	$this->listtbl = $GLOBALS['tables']['submitByMailPlugin_list']; 
-    	return true;
+    function initialise() {
+    	saveConfig('dcrt', $_SERVER['DOCUMENT_ROOT']);	// We need the document root,
+    													// which is not availabler
+    													// from the command line
+		parent::initialise();
+    }
+
+	function notifySender($to, $subject, $message) {
+    	sendMail ($to, $subject, $message);
+    	logEvent ($message);
     }
     
-    
-    // Save unprocessed message in the escrow directory
-    // $theMail is the entire message including headers and attachments
-    function escrowMail($theMail, $token) {
-    	$fn = tempnam ($this->escrowdir, 'temp');
-    	file_put_contents ($fn, $theMail);
-    	$query - sprintf("insert into %s values ('%s', '%s', %d)", $token, $fn, time() + self::ONE_DAY);
-    	Sql_Query($query);    	
+    function getTheLists($name='') {
+    	global $tables;
+    	$A = $tables['list']; 	// My table holds submission stuff for lists
+		$B = $this->tables['list'];	// Phplist table of lists, including name and id
+		$out = array();
+		if (strlen($name)) {
+			$where = sprintf("WHERE $A.name='%s' ", $name); 
+		}
+    	$query = "SELECT $A.name,$B.submissionadr,$A.id FROM $A LEFT JOIN $B ON $A.id=$B.id {$where}ORDER BY $A.name";
+    	if ($res = Sql_Query($query)) {
+    		$ix = 0;
+    		while ($row = Sql_Fetch_Row($res)) {
+    			$out[$ix] = $row;
+    			$ix += 1;
+    		}	
+    	}
+    	return $out; 
+    }
+          
+    // Get the numberical id of a list from its email submission address
+    function getListID ($email) {
+    	$query = sprintf("select id from %s where submissionadr='%s'", $this->tables['list'], trim($submissionadr));
+    	if ($res = Sql_Query($query)) {
+    		$row = Sql_Fetch_Row($res);
+    		return $row[0];
+    	}
+    	return false;
     }
     
-    // Create a token for confirmation of email submissions
-    // Use the Phplist algorithm for creating a password token
-    function createToken() {
-    	while(1){
-    		$tm = time(); $rn = rand(1, $tm);
-    		$key = md5($tm ^ $rn);
-  			$SQLquery = sprintf("select * from %s where token = '%s'", $this->escrowtbl, $key);
-  			$row = Sql_Fetch_Row_Query($SQLquery);
-	  		if($row[0]=='') break;
-  		}
-  		return $key;
+    function getListParameters ($id) {
+    	$query = sprintf ("select mail_submit_ok, pop3server, pipe_submission, confirm, queue from %s where id=%d", $this->tables['list'], $id);
+    	return Sql_Fetch_Assoc_Query($query);
     }
     
-  function processEditList($id) {
+    function getListOwner($id) {
+    	$query = sprintf ("select owner from %s where id=%d", $GLOBALS['tables']['list'], $id);
+    	$row = Sql_Fetch_Row_Query($query);
+    	return $row[0];
+    }
+
+    
+/*  function processEditList($id) {
     # purpose: process edit list page (usually save fields)
     # return false if failed
     # 200710 Bas
+    if ($_POST['submitOK'] == 'No') { 	// No submission params if submission disallowed
+    	$query = sprintf("delete * from %s where id=%d", $this->tables['list'], $id);
+    	return true;
+    }
+    
+    // Make sure that a different list does not have same submission address
+    $sadr = trim($_POST['submitadr']);
+    $query = sprintf("select id from %s where submitAdr=%s", $this->tables['list'], $sadr);
+    $dbres = Sql_Query($query);
+    $numrows = Sql_Num_Rows($dbres);
+    if ($numrows > 0) {	// This submission address is in the database
+    	// Find the first list with a different id from the list we'e editing
+    	$row = Sql_Fetch_Row($dbres);
+    	$cur = $row[0];
+    	while($cur == $id) {
+    		$row = Sql_Fetch_Row($dbres);
+    		if ($row)
+    			$cur = $row[0];
+		}
+		if ($cur <> $id) {	// Got a different list with this submission address
+    		Warn ("The address you have entered belongs to the list &quot;" . listname($id) . "&quot;. Message submission by email is not enabled for the list &quot;" . $_POST['listname'] . '&quot;.');
+    		return false;
+		}
+			    	
+    }
+    
+    // If POP submission, verify that it works
+    if ($_POST['cmethod'] == 'Pipe')
+    	$server = $pass = ''; 	// Don't need POP3 params with pipe
+    else {
+    	$server = trim($_POST['pop3Server']);
+    	$pass = trim($_POST['pw']);
+    }
+    
+    // Everything OK. Store the data	
     $params = array (
     				$id,
     				1,
-    				trim($_POST['submitEmail']), 
-    				trim($_POST['uname']), 
-    				trim($_POST['pw']), 
-    				($_POST['cmethod'] == 'Pipe')? 1:0,
+    				$server, 
+    				$sadr, 
+    				$pass, 
+    				($_POST['cmethod'] == 'Pipe')? 1:0, 
     				($_POST['confirm'] == 'Yes')? 1: 0, 
     				($_POST['mdisposal'] == 'queue')? 1: 0,
     				$_POST['template'],
     				trim($_POST['footer'])
     				) ;
-// We must forbid two lists from using the same email address. There is a world of complication otherwise!!
-    $query = sprintf("select * from %s where id=%d", $this->listtbl, $id);
-    if ($row = Sql_Fetch_Row_Query($query)){	// Already have this id in our list table?
-    	if (!strlen($params[2])) {	// No email submission address means delete old data
-    		$params = array();
-    		$query = sprintf("delete from %s where id = %d", $this->listtbl, $id);
-    	} else {
-    		array_shift($params);
-    		$query = sprintf("update %s set mail_submit_ok=?, email=?, username=?, password=?, pipe_submission=?, confirm=?, queue=?, template=?, footer=? where id=%d", $this->listtbl, $id);
-    	}
-	} else {
-		if (!strlen($params[2]))	// No data for submission by email
-    		return true;
-    	$query = sprintf("select id from %s where email='%s'", $this->listtbl, $_POST['submitEmail']);
-    	if ($row = Sql_Fetch_Row_Query($query)) {
-    		$query = sprintf("select name from %s where id = %d", $GLOBALS['tables']['list'], $row[0]);
-    		$row = Sql_Fetch_Row_Query($query);
-    		Warn ("The address you have entered belongs to the list &quot;{$row[0]}&quot;. Message submission by email is not enabled for the list &quot;" . $_POST['listname'] . '&quot;.');
-    		return false;
-    	}
-    	$query = sprintf ("insert into %s values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", $this->listtbl); 
-    }
     Sql_Query_Params($query, $params);
     return true;
   }
@@ -293,10 +220,10 @@ class submitByMailPlugin extends phplistPlugin
     	$footer = getConfig('messagefooter');
     	
     	if (isset($list['id'])) {
-    		$query = sprintf("select * from %s where id=%d", $this->listtbl, $list['id']);
+    		$query = sprintf("select * from %s where id=%d", $this->tables['list'], $list['id']);
     		if ($row = Sql_Fetch_Assoc_Query($query)) {
-    			$eml = $row['email'];
-    			$user = $row['username'];
+    			$eml = $row['pop3server'];
+    			$user = $row['submissionadr'];
     			$pass = $row['password'];
     			if ($row['mail_submit_ok']) {
     				$msyes = $ckd;
@@ -360,14 +287,14 @@ $hr
 	<input type="radio" name="submitOK" value="No" $msno />No</label>
 </p>
 <p>
-<label>Mail submission address:<input type="text" name="submitEmail" value="$eml" maxlength="255" /></label>
-<label style="display:inline !important;">Username: <input type="text" name="uname" style="width:300px !important; 
-display:inline !important;" value="$user" maxength="255" /></label>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<label style="display:inline !important;">Password: <input type="text" name="pw" 
+<label>Collection method:&nbsp;&nbsp;<input type="radio" name="cmethod" value="POP" $pop />POP3 with SSL/TLS
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="cmethod" value="Pipe" $pipe />Pipe</label>
+</p><p>
+<label style="display:inline !important;">Submission Address: <input type="text" name="submitadr" style="width:250px !important; 
+display:inline !important;" value="$user" maxength="255" /></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<label style="display:inline !important;">Password: <input type="text" name="pw" 
 style="width:125px !important; display:inline !important;" value="$pass" maxength="255" /></label>
+<label>Mail Submission POP3 Server:<input type="text" name="pop3Server" value="$eml" maxlength="255" /></label>
 
-<label>Collection method:&nbsp;&nbsp;<input type="radio" name="cmethod" value="POP" $pop />POP
-&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="cmethod" value="Pipe" $pipe />Pipe</label>
 <label>What to do with submitted message:&nbsp;&nbsp;<input type="radio" name="mdisposal" 
 value="save" $save />Save&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="queue" $queue />Queue</label>
 <label>Confirm submission:&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" $cfmyes />Yes&nbsp;&nbsp;&nbsp;&nbsp;
@@ -376,83 +303,6 @@ value="save" $save />Save&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisp
 $hr
 EOD;
 		return $str;
-  }
-  
-  /* 
-  foreach($theMsg['to'] as $val) {
-			$query = sprintf("select id from $listtbl where email='%s'", $val['address']);
-			if ($row = Sql_Fetch_Row_Query($query)) {
-				$target = $row[0];		// ID of the target list 
-				break;
-			}
-		}  */
-  
-  	// Here we save the decoded message. Before this function is called we have verified
-  	// that everything in the submitted message is kosher. So we do not have to do much
-  	// error checking here.
-	private function saveMessage(decodedMessage $theMsg) {
-		$fields = array ("subject", "fromfield", "tofield", "replyto", "message", 
-					"footer", "entered", "modified", "embargo", "repeatinterval", 
-					"repeatuntil", "requeueinterval", "requeueuntil", "status", 
-					"htmlformatted", "sendformat", "template", "owner"); // Column names in message table
-		$messagedata = array();
-		foreach ($fields as $val)
-			$messagedata[$val] ='';
-		
-		// Get the $listtbl items 
-		$query = sprintf("select queue, template, footer from $listtbl where id=%d", $this->target);
-		$rsrc = Sql_Query ($query);
-		$row = Sql_Fetch_Assoc ($rsrc);
-		$messagedata['template'] = $row['template'];
-		$messagedata['footer'] = $row['footer'];
-		$messagedata['owner'] = $this->owner;
-		if ($row['queue'])
-			$messagedata['status'] = 'submitted';
-		else
-			$messagedata['status'] = 'draft';
-		
-		// Now get the material from this message
-		$messagedata['subject'] = $theMsg['subject'];
-		if ($theMsg['is_html']) {
-			$messagedata["sendformat"] = 'HTML';
-			$messagedata['htmlformatted'] = 1;
-		} else {
-			$messagedata["sendformat"] = 'text';
-			$messagedata['htmlformatted'] = 0;
-		}
-		if ($theMsg['from']['name'])
-			$messagedata['fromfield'] = $theMsg['from']['name'] . '<' . $theMsg['from']['address'] . '>';
-		else
-			$messagedata['fromfield'] = $theMsg['from']['address'];
-		$messagedata['repeatinterval'] = $messagedata['requeueinterval'] = 0;
-		$messagedata['message'] = $theMsg['content'];
-		// Default time zone for PHP should have been set earlier by connect.php
-		$messagedata['embargo'] = $messagedata["repeatuntil"] = $messagedata['requeueuntil'] = date('Y-m-d h:i');
-		
-		// Put all this into the message table. We need the ID of this message to
-		// process the attachments. We may have to update the message in the database 
-		// later
-		$query = sprintf("insert into %s (", $GLOBALS['tables']['message']);
-		$query2 = " values (";
-		$params = array ();
-		foreach ($fields as $val) {
-			$query .= $val . ', ';
-			$params[] = $messagedata[$val];
-			$query2 .= '?, ';
-		}
-		$query = rtrim($query); $query2 = rtrim($query2);
-		$query = rtrim($query, ',') . ')' . rtrim($query2, ',') . ')';
- 		$query .= " values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
- 		Sql_Query_Params($query, $params);
- 		$msgid = Sql_Insert_Id();
- 		
- 		//Now we are ready to deal with the attachments
- 		if (ALLOW_ATTACHMENTS) {
- 			$attachdir = $GLOBALS['attachment_repository'];
- 		}
- 	}
-
-// UPLOADIMAGES_DIR		
-
+  } */
 }
 ?>
