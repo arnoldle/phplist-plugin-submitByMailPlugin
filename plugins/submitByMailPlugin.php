@@ -28,7 +28,6 @@
  * 
  */
 
-
 /**
  * Registers the plugin with phplist
  * 
@@ -87,6 +86,17 @@ class submitByMailPlugin extends phplistPlugin
     	return array (
       		"configure_a_list" => "Configure a List for Submission by Email",
       	    );
+	}
+	
+	function cleanFormString($str) {
+		return sql_escape(strip_tags(trim($str)));
+	}
+	
+	function myFormStart($action, $additional) {
+		$html = formStart($additional);
+		preg_match('/action\s*=\s*".*"/Ui', $html, $match);
+		$html = str_replace($match[0], 'action="' . $action .'"', $html);
+		return $html;
 	}
   	
   	function __construct()

@@ -1,16 +1,16 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0a1
  * 
- *
  * @category  phplist
  * @package   submitByMail Plugin
  * @author    Arnold V. Lesikar
  * @copyright 2014 Arnold V. Lesikar
  * @license   http://www.gnu.org/licenses/gpl.html GNU General Public License, Version 3
- * 
- * This program is free software: you can redistribute it and/or modify
+ *
+ * This file is a part of the submitByMailPlugin for Phplist
+ *
+ * The submitByMailPlugin is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -36,7 +36,7 @@ if (isset($_GET["start"])){
 }
 else $start = 0;
 
-if (isset($_POST['save']) || isset($_POST['search'])) {	
+if (isset($_POST['save']) || isset($_POST['search']) || isset($_POST['update'])) {	
 
    /* check the XSRF token */
    if (!verifyToken()) {
@@ -50,6 +50,16 @@ $ourname = $_GET['pi'];
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 $currentUser = $_SESSION["logindetails"]["id"];
 $needle = '';
+
+// Handle update of submission configuration
+/* if (isset($_POST['update'])) {
+	$fn = $sbm->cleanFormString($_POST['filename']) . '.' . $sbm->cleanFormString($_POST['extension']);
+	$desc = substr($sbm->cleanFormString($_POST['image_description']), 0, 255);
+	$query = sprintf("update %s set file_name='%s', short_name='%s', description='%s' where imgid=%d", $imgtbl, $fn, $sbm->cleanFormString($_POST['shortname']),$desc, $_POST['imageid']);
+	if (!Sql_query($query))
+		Warn(sprintf("Update of information for image %d failed!", $_POST['imageid']));
+
+} */
 
 // Initialize seartch
 if (isset($_POST['search']) || (isset($_POST['save']) && isset($_POST['needle']))){
@@ -80,7 +90,7 @@ else {
 	$end = min ($total, $start + $sbm->numberPerList);
 	for ($ix = $start; $ix < $end; $ix++) {
 		$pid = $listArray[$ix][2];
-		$editurl = PageURL2('edit','','eid=' . $pid);
+		$editurl = PageURL2('edit_list','','eid=' . $pid);
 		$mylist->addElement($pid, $editurl);
 		$mylist->addColumn($pid, 'List Name', $listArray[$ix][0], $editurl);
 		if ($listArray[$ix][1])
@@ -103,7 +113,7 @@ $list = str_replace($ltitle, $newtitle, $list);
 
 $mypanel .= $list . '<br />';
 $mypanel .= $sform . '<br />';
-Info('Click on the Name or ID of a Mailing Liste to Configure the List for Email Submission or to Edit Its Configuration.');
+Info('Click on the Name or ID of a Mailing Liste to Configure the List for Email Submission or to Edit Its Submission Configuration.');
 $panel = new UIPanel('Available Mailing Lists',$mypanel,'');
 print $panel->display();
 print('</form>');
