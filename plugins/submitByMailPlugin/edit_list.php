@@ -27,10 +27,19 @@
  * http://resources.phplist.com/plugins/submitByMail .
  * 
  */
+
+// This page presents a form allowing a mailing list to be configured for submission
+// of messages by email. On submission, the form is validated for various issues
+// but the form data is actually stored by the page configure_a_list.php
+
 if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
 $editid = $_GET['eid'];
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
-
+$listArray = $sbm->getTheLists();
+$adrsList = array();
+foreach ($listArray as $val)
+	if ($val[1]) $adrsList[$val[1]] = $val[0];
+	
 // Set up defaults for form
 $eml = $user = $pass = $msyes = $pipe = $cfmno = $queue = '';
 $save = $pop = $cfmyes = $msno = $ckd = 'checked';
@@ -44,7 +53,7 @@ if ($row = Sql_Fetch_Assoc_Query($query)) {
 	$user = $row['submissionadr'];
 	$pass = $row['password'];
 
-	if ($row['mail_submit_ok']) {
+	if ($user) {
 		$msyes = $ckd;
 		$msno = '';
 	} else {
@@ -92,52 +101,147 @@ if ($templates_available) {
 	$template_form = '';
 
 $footer_form = '<p><div class="field"><label for="footer">Footer to be used for messages submitted through this address:</label><textarea name="footer" cols="65" rows="5">'. htmlspecialchars($footer).'</textarea></div></p>';
+$dilg = '<div id="mydialog" title="Data Not Saved" style="text-align:center;"></div>'; // Space for modal dialogs using jQueryUI
+// Add a confirmation dialog
 
 $ln = listName($editid);
 
+// Now lay out the form
 print ($sbm->myFormStart(PageURL2('configure_a_list'), 'name="sbmConfigEdit" class="submitByMailPlugin" id="sbmConfigEdit"'));
 
 $mypanel = <<<EOD
-<p>	<label>Submission by mail allowed: <input type="radio" name="submitOK" value="Yes" $msyes />Yes&nbsp;&nbsp;&nbsp;&nbsp;
-	<input type="radio" name="submitOK" value="No" $msno />No</label>
+<p><label style="display:inline !important;">Submission by mail allowed:</label> <input type="radio" name="submitOK" value="Yes" $msyes /><label style="display:inline !important;">Yes</label>&nbsp;&nbsp;&nbsp;&nbsp;
+	<input type="radio" name="submitOK" value="No" $msno /><label style="display:inline !important;">No</label>
 </p>
 <p>
-<label>Collection method:&nbsp;&nbsp;<input type="radio" name="cmethod" value="POP" $pop/>POP3 with SSL/TLS
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="cmethod" value="Pipe" $pipe/>Pipe</label>
+<label style="display:inline !important;">Collection method:</label>&nbsp;&nbsp;<input type="radio" name="cmethod" value="POP" $pop/><label style="display:inline !important;">POP3 with SSL/TLS</label>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="cmethod" value="Pipe" $pipe/><label style="display:inline !important;">Pipe</label>
 </p><p>
-<label style="display:inline !important;">Submission Address: <input type="text" name="submitadr" style="width:250px !important; 
-display:inline !important;" value="$user" maxength="255" /></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id="pop"><label style="display:inline !important;">Password: <input type="text" name="pw" 
-style="width:125px !important; display:inline !important;" value="$pass" maxength="255" /></label>
-<label>Mail Submission POP3 Server:<input type="text" name="pop3Server" value="$eml" maxlength="255" /></label></span>
-
-<label>What to do with submitted message:&nbsp;&nbsp;<input type="radio" name="mdisposal" 
-value="save" $save />Save&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="queue" $queue />Queue</label>
-<label>Confirm submission:&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" $cfmyes />Yes&nbsp;&nbsp;&nbsp;&nbsp;
-	<input type="radio" name="confirm" value="No" $cfmno />No</label></p>$template_form $footer_form
-<input class="submit" type="submit" name="submitok" value="Save");" />
+<label style="display:inline !important;">Submission Address:&nbsp;&nbsp;<input type="text" name="submitadr" style="width:200px !important; 
+display:inline !important;" value="$user" maxlength="255" /></label><div id="pop" style="margin-top:-25px; margin-bottom: 5px;"><label style="display:inline !important;">Password:&nbsp;&nbsp;<input type="text" name="pw" 
+style="width:125px !important; display:inline !important;" value="$pass" maxlength="255" /></label>
+<label>Mail Submission POP3 Server (<span style="font-weight:bold; color:red;">Don't include a port number!</span>):<input type="text" name="pop3Server" value="$eml" maxlength="255" /></label></div>
+<div id="formbtm">
+<label style="display:inline !important;">What to do with submitted message:</label>&nbsp;&nbsp;<input type="radio" name="mdisposal" 
+value="Save" $save /><label style="display:inline !important;">Save</label>&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="Queue" $queue /><label style="display:inline !important;">Queue</label>
+<br /><br /><label style="display:inline !important;">Confirm submission:</label>&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" $cfmyes /><label style="display:inline !important;">Yes</label>&nbsp;&nbsp;&nbsp;&nbsp;
+	<input type="radio" name="confirm" value="No" $cfmno /><label style="display:inline !important;">No</label>$template_form $footer_form
+<input class="submit" type="submit" name="update" value="Save");" />
 EOD;
 
 $mypanel .= PageLinkClass('configure_a_list','Cancel','','button cancel','Do not save, and go back to the lists');
+$mypanel .= "</div></p>";
 
-$panel = new UIPanel("Submit to List by Mail: <strong>$ln</strong>", $mypanel);
+$panel = new UIPanel("Submit to List by Mail: <strong id=\"mylistname\">$ln</strong>", $mypanel);
 print($panel->display());
-print '</form>';
+print($dilg);
+print("</form>\n");
+
+print ('<script type="text/javascript">');
+print ("var adrs = " . json_encode($array) . ";\n");
+if ($user)
+	print ("var prevvals = true;\n");
+else
+	print ("var prevvals = false;\n");
+	
+// Go to HTML for the remainder of the javascript for convenience sake.
 ?>
-<script type="text/javascript">
+// The following scripts makes sure that POP credentials can be entered only if the POP 
+// radio button has been pressed. They also validate the form for various issues.
+// The submission address is validated and the POP credentials are verified using ajax.
+// See the page verify.php
+         
 $(document).ready(function () {
     toggleFields(); //call this first so we start out with the correct visibility depending on the selected form values
-    //this will call our toggleFields function every time the selection value of our underAge field changes
+    //this will call our toggleFields function every time the POP or Pipe radio buttons change
     $( "input[type=radio]" ).change(function () {
         toggleFields();
-    });
+    	});
+    $("#mydialog").dialog({
+    		modal: true,
+    		autoOpen: false,
+    		width: 500
+    	}); 
+	$(".ui-dialog-titlebar-close").css("display","none ");
+	$(".ui-dialog-content").css("margin", "10px");
+	$(".ui-dialog").css("border","3px solid DarkGray");
+	$(".ui-dialog-content").css("font-size", "18px");
+  });
 
-});
-//this toggles the visibility of our parent permission fields depending on the current selected value of the underAge field
+
+//this toggles the visibility of our the fields for input of POP credentials depending on the currently 
+//selected value of the 'Collection Method' radio buttons
 function toggleFields() {
 	if ($("input[name=cmethod]:checked").val() == "POP") {
+		$("#formbtm").css("margin-top", "");
         $("#pop").show();
     } else {
-        $("#pop").hide();
+        $("#formbtm").css("margin-top", "-20px");
+       	$("#pop").hide();
     }
 }
+
+function myalert(msg) {
+	$("#mydialog").html(msg);
+	$("#mydialog").dialog("option",{buttons:{"OK": function() {
+        				$( this ).dialog( "close" );}}});
+	$("#mydialog").dialog("open");
+}
+
+function myconfirm(msg) {
+	$("#mydialog").html(msg);
+	$("#mydialog").dialog("option",
+		{buttons:{"Yes": function() 
+			{
+				var myform = document.getElementById("sbmConfigEdit");
+				myform.submit();
+        		$( this ).dialog( "close" );
+            }, 
+        "No": function()
+        	{
+        		$( this ).dialog( "close" );
+        	}
+        }
+    });
+	$("#mydialog").dialog("open");
+	
+}
+
+$("form[name=sbmConfigEdit]").submit(function( event ) {
+	var srvr = $("input[name=pop3Server]").val();
+	var sadr = $("input[name=submitadr]").val();
+	var pwd = $("input[name=pw]").val();
+	var ln = $("#mylistname").text();
+	var myjob = ($("input[name=cmethod]:checked").val() =="Pipe") ? "validate" : "verify";
+
+	if ($("input[name=submitOK]:checked").val() == "No") {
+		if (!prevvals)
+			return true;
+		else
+			myconfirm ("Are you <strong>absolutely sure</strong> that you want to delete email submission data for this list?");
+	}
+	if (sadr=='') {
+		myalert("You cannot allow email submission of messages without specifying a submission address!");
+		return false;
+	}
+	
+	if ((adrs != null) && (adrs[sadr] != null) && (adrs[sadr] != ln)) {
+		myalert("Submission address already used by another list. <strong>Two lists cannot have the same submission address.</strong>");
+		return false;
+	}
+	
+	event.preventDefault();
+	$.post( "plugins/submitByMailPlugin/verify.php", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
+			if (data == 'OK') {
+				if (($("input[name=mdisposal]:checked").val() == "Queue") && ($("input[name=confirm]:checked").val() == "No")) 
+					myconfirm("Are you <strong>absolutely sure</strong> that you want to queue messages mailed in, without confirming with the list administrator?");
+
+			} else {
+				if (data == 'NO')
+					myalert ("User name, server, and password do not verify!");
+				else
+					myalert("Invalid email address for message submission!");
+			}
+		}, "text");
+});
 </script>

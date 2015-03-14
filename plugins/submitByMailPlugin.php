@@ -28,6 +28,8 @@
  * 
  */
 
+require_once(dirname(__FILE__)."/submitByMailPlugin/ajax.php");
+
 /**
  * Registers the plugin with phplist
  * 
@@ -81,6 +83,12 @@ class submitByMailPlugin extends phplistPlugin
 	
 	
   	const ONE_DAY = 86400; 	// 24 hours in seconds
+  	const SERVER_TAIL = ':995/pop3/ssl/novalidate-cert';
+  	
+  	// Provide complete server name in a form suitable for a SSL/TLS POP call using iMap function
+  	function completeServerName($server) {
+  		return '{' . $server . sbmAjax::SERVER_TAIL . '}';
+  	}
   	
   	function adminmenu() {
     	return array (
@@ -161,158 +169,5 @@ class submitByMailPlugin extends phplistPlugin
     	$row = Sql_Fetch_Row_Query($query);
     	return $row[0];
     }
-
-    
-/*  function processEditList($id) {
-    # purpose: process edit list page (usually save fields)
-    # return false if failed
-    # 200710 Bas
-    if ($_POST['submitOK'] == 'No') { 	// No submission params if submission disallowed
-    	$query = sprintf("delete * from %s where id=%d", $this->tables['list'], $id);
-    	return true;
-    }
-    
-    // Make sure that a different list does not have same submission address
-    $sadr = trim($_POST['submitadr']);
-    $query = sprintf("select id from %s where submitAdr=%s", $this->tables['list'], $sadr);
-    $dbres = Sql_Query($query);
-    $numrows = Sql_Num_Rows($dbres);
-    if ($numrows > 0) {	// This submission address is in the database
-    	// Find the first list with a different id from the list we'e editing
-    	$row = Sql_Fetch_Row($dbres);
-    	$cur = $row[0];
-    	while($cur == $id) {
-    		$row = Sql_Fetch_Row($dbres);
-    		if ($row)
-    			$cur = $row[0];
-		}
-		if ($cur <> $id) {	// Got a different list with this submission address
-    		Warn ("The address you have entered belongs to the list &quot;" . listname($id) . "&quot;. Message submission by email is not enabled for the list &quot;" . $_POST['listname'] . '&quot;.');
-    		return false;
-		}
-			    	
-    }
-    
-    // If POP submission, verify that it works
-    if ($_POST['cmethod'] == 'Pipe')
-    	$server = $pass = ''; 	// Don't need POP3 params with pipe
-    else {
-    	$server = trim($_POST['pop3Server']);
-    	$pass = trim($_POST['pw']);
-    }
-    
-    // Everything OK. Store the data	
-    $params = array (
-    				$id,
-    				1,
-    				$server, 
-    				$sadr, 
-    				$pass, 
-    				($_POST['cmethod'] == 'Pipe')? 1:0, 
-    				($_POST['confirm'] == 'Yes')? 1: 0, 
-    				($_POST['mdisposal'] == 'queue')? 1: 0,
-    				$_POST['template'],
-    				trim($_POST['footer'])
-    				) ;
-    Sql_Query_Params($query, $params);
-    return true;
-  }
-
-    function displayEditList($list) {
-    # purpose: return tablerows with list attributes for this list
-    # Currently used in list.php
-    # 200710 Bas
-     
-    	// Set up defaults for form
-    	$eml = $user = $pass = $msyes = $pipe = $cfmno = $queue = '';
-    	$save = $pop = $cfmyes = $msno = $ckd = 'checked';
-    	$tmplt = 0;
-    	$footer = getConfig('messagefooter');
-    	
-    	if (isset($list['id'])) {
-    		$query = sprintf("select * from %s where id=%d", $this->tables['list'], $list['id']);
-    		if ($row = Sql_Fetch_Assoc_Query($query)) {
-    			$eml = $row['pop3server'];
-    			$user = $row['submissionadr'];
-    			$pass = $row['password'];
-    			if ($row['mail_submit_ok']) {
-    				$msyes = $ckd;
-    				$msno = '';
-    			} else {
-    				$msno = $ckd;
-    				$msyes = '';
-    			}
-    			if ($row['pipe_submission']) {
-    				$pipe = $ckd;
-    				$pop = '';
-    			} else {
-    				$pop = $ckd;
-    				$pipe = '';
-		   		}
-		    	if ($row['confirm']) {
-		   	 		$cfmyes = $ckd;
-		   	 		$cmno = '';
-		    	} else {
-		    		$cfmno = $ckd;
-		    		$cfmyes = '';
-		    	}
-				if ($row['queue']) {
-					$queue = $ckd;
-					$save = '';
-				} else {
-					$save = $ckd;
-					$queue = '';
-				}
-				$tmplt = $row['template'];
-				$footer = $row['footer'];
-			}
-		}
-		
-		$req = Sql_Query("select id,title from {$GLOBALS['tables']['template']} order by listorder");
-  		$templates_available = Sql_Num_Rows($req);
-  		if ($templates_available) {
-  			$template_form = '<p><div class="field"><label for="template">Template to use for messages submitted through this address:</label>
-  			<select name="template"><option value="0">-- Use None</option>';
-    		$req = Sql_Query("select id,title, listorder from {$GLOBALS['tables']['template']} order by listorder");
-			while ($row = Sql_Fetch_Assoc($req)) {   // need to fix lines below
-      			if ($row["title"]) {
-        			$template_form .= sprintf('<option value="%d" %s>%s</option>',$row["id"], 
-        				$row["id"]==$tmplt?'selected="selected"':'',$row["title"]);
-        		}
-        	}
-        	$template_form .= '</select></div></p>';
-        } else
-        	$template_form = '';
-        	
-        $footer_form = '<p><div class="field"><label for="footer">Footer to be used for messages submitted through this address:</label>
-   <textarea name="footer" cols="65" rows="5">'. htmlspecialchars($footer).'</textarea></div></p>';
-   		$hr = '<hr style="height:1px; border:none; color:#000; background-color:#000; width:80%; text-align:right; margin: 0 auto 10px 0;"/>';
-
-		$ln = trim($list['name'])? $list['name']: 'This List';
-		$str = <<<EOD
-$hr
-<fieldset>
-	<legend style="text-align:center; font-size:18px; color:DarkBlue;margin-bottom:15px;">Submit to $ln by Mail</legend>
-<p>	<label>Submission by mail allowed: <input type="radio" name="submitOK" value="Yes" $msyes />Yes&nbsp;&nbsp;&nbsp;&nbsp;
-	<input type="radio" name="submitOK" value="No" $msno />No</label>
-</p>
-<p>
-<label>Collection method:&nbsp;&nbsp;<input type="radio" name="cmethod" value="POP" $pop />POP3 with SSL/TLS
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="cmethod" value="Pipe" $pipe />Pipe</label>
-</p><p>
-<label style="display:inline !important;">Submission Address: <input type="text" name="submitadr" style="width:250px !important; 
-display:inline !important;" value="$user" maxength="255" /></label>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<label style="display:inline !important;">Password: <input type="text" name="pw" 
-style="width:125px !important; display:inline !important;" value="$pass" maxength="255" /></label>
-<label>Mail Submission POP3 Server:<input type="text" name="pop3Server" value="$eml" maxlength="255" /></label>
-
-<label>What to do with submitted message:&nbsp;&nbsp;<input type="radio" name="mdisposal" 
-value="save" $save />Save&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="queue" $queue />Queue</label>
-<label>Confirm submission:&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" $cfmyes />Yes&nbsp;&nbsp;&nbsp;&nbsp;
-	<input type="radio" name="confirm" value="No" $cfmno />No</label></p>$template_form $footer_form
-</fieldset>
-$hr
-EOD;
-		return $str;
-  } */
 }
 ?>

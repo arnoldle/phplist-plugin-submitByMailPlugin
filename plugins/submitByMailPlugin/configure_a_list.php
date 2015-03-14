@@ -36,7 +36,7 @@ if (isset($_GET["start"])){
 }
 else $start = 0;
 
-if (isset($_POST['save']) || isset($_POST['search']) || isset($_POST['update'])) {	
+if (isset($_POST['search']) || isset($_POST['update'])) {	
 
    /* check the XSRF token */
    if (!verifyToken()) {
