@@ -27,7 +27,6 @@
  * 
  */
 
-file_put_contents("/Users/arnoldvl/Desktop/debug.txt", "Verifying or validating\n");
 // Ajax file called from edit_list.php to validate email address and verify POP credentials
 require_once(dirname(__FILE__) ."/ajax.php");
 if (($_POST['job']=='validate') || ($_POST['job']=='verify')) {

@@ -110,6 +110,7 @@ $ln = listName($editid);
 print ($sbm->myFormStart(PageURL2('configure_a_list'), 'name="sbmConfigEdit" class="submitByMailPlugin" id="sbmConfigEdit"'));
 
 $mypanel = <<<EOD
+<input type="hidden" name="listid" value=$editid><input type="hidden" name="update" value=0>
 <p><label style="display:inline !important;">Submission by mail allowed:</label> <input type="radio" name="submitOK" value="Yes" $msyes /><label style="display:inline !important;">Yes</label>&nbsp;&nbsp;&nbsp;&nbsp;
 	<input type="radio" name="submitOK" value="No" $msno /><label style="display:inline !important;">No</label>
 </p>
@@ -126,7 +127,7 @@ style="width:125px !important; display:inline !important;" value="$pass" maxleng
 value="Save" $save /><label style="display:inline !important;">Save</label>&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="Queue" $queue /><label style="display:inline !important;">Queue</label>
 <br /><br /><label style="display:inline !important;">Confirm submission:</label>&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" $cfmyes /><label style="display:inline !important;">Yes</label>&nbsp;&nbsp;&nbsp;&nbsp;
 	<input type="radio" name="confirm" value="No" $cfmno /><label style="display:inline !important;">No</label>$template_form $footer_form
-<input class="submit" type="submit" name="update" value="Save");" />
+<input class="submit" type="submit" name="submitter" value="Save");" />
 EOD;
 
 $mypanel .= PageLinkClass('configure_a_list','Cancel','','button cancel','Do not save, and go back to the lists');
@@ -138,7 +139,7 @@ print($dilg);
 print("</form>\n");
 
 print ('<script type="text/javascript">');
-print ("var adrs = " . json_encode($array) . ";\n");
+print ("var adrs = " . json_encode($adrsList) . ";\n");
 if ($user)
 	print ("var prevvals = true;\n");
 else
@@ -184,8 +185,16 @@ function toggleFields() {
 function myalert(msg) {
 	$("#mydialog").html(msg);
 	$("#mydialog").dialog("option",{buttons:{"OK": function() {
-        				$( this ).dialog( "close" );}}});
+        				$(this).dialog("close");}}});
 	$("#mydialog").dialog("open");
+}
+
+function mysubmit(upd) {
+	var myform = document.getElementById("sbmConfigEdit");
+    if (upd)
+    	$("input[name=update]").val(1);
+    myform.submit();
+    	
 }
 
 function myconfirm(msg) {
@@ -193,18 +202,16 @@ function myconfirm(msg) {
 	$("#mydialog").dialog("option",
 		{buttons:{"Yes": function() 
 			{
-				var myform = document.getElementById("sbmConfigEdit");
-				myform.submit();
-        		$( this ).dialog( "close" );
+				mysubmit(1);
+				$(this).dialog("close");
             }, 
         "No": function()
         	{
-        		$( this ).dialog( "close" );
+        		$(this).dialog("close");
         	}
         }
     });
-	$("#mydialog").dialog("open");
-	
+	$("#mydialog").dialog("open");	
 }
 
 $("form[name=sbmConfigEdit]").submit(function( event ) {
@@ -213,12 +220,14 @@ $("form[name=sbmConfigEdit]").submit(function( event ) {
 	var pwd = $("input[name=pw]").val();
 	var ln = $("#mylistname").text();
 	var myjob = ($("input[name=cmethod]:checked").val() =="Pipe") ? "validate" : "verify";
-
+	    		
 	if ($("input[name=submitOK]:checked").val() == "No") {
-		if (!prevvals)
-			return true;
-		else
+		if (!prevvals) 
+			mysubmit(0);
+		else {
 			myconfirm ("Are you <strong>absolutely sure</strong> that you want to delete email submission data for this list?");
+			return false;
+		}
 	}
 	if (sadr=='') {
 		myalert("You cannot allow email submission of messages without specifying a submission address!");
@@ -234,8 +243,10 @@ $("form[name=sbmConfigEdit]").submit(function( event ) {
 	$.post( "plugins/submitByMailPlugin/verify.php", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
 			if (data == 'OK') {
 				if (($("input[name=mdisposal]:checked").val() == "Queue") && ($("input[name=confirm]:checked").val() == "No")) 
-					myconfirm("Are you <strong>absolutely sure</strong> that you want to queue messages mailed in, without confirming with the list administrator?");
-
+					myconfirm("Are you <strong>absolutely sure</strong> that you want to queue messages mailed in, without confirming with the list administrator?", myform);
+				else {
+					mysubmit(1);
+				}
 			} else {
 				if (data == 'NO')
 					myalert ("User name, server, and password do not verify!");

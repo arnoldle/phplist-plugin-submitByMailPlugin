@@ -51,9 +51,10 @@ class submitByMailPlugin extends phplistPlugin
     		'escrow' => array(
     			"token" => array("varchar(35) not null primary key", "Token sent to confirm escrowed submission"),
     			"file_name" => array("varchar(255) not null","File name for escrowed submission"),
+    			"subject" => array("varchar(255) not null default '(no subject)'","subject"),
+    			"listid" => array("integer not null","List ID"),
     			"expires" => array ("timestamp not null", "Time when submission expires without confirmation")
-    			
-			),
+			), 
 			'list' => array(
 				"id" => array("integer not null primary key", "ID of the list associated with the email address"),
 				"pop3server" => array ("varchar(255) not null", "Server collecting list submissions"),
@@ -69,8 +70,21 @@ class submitByMailPlugin extends phplistPlugin
 	
 	public $tables = array ();	// Table names are prefixed by Phplist
 	public $commandlinePages = array ('receiveMsg',);
-	public $pagesTitles = array ("configure_a_list" => "Configure a List for Submission by Email");
-	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'));	
+	public $settings = array(
+    "escrowHoldTime" => array (
+      'value' => 1,
+      'description' => 'How many days escrowed messages are held before being discarded',
+      'type' => "text",
+      'allowempty' => 0,
+      "max" => 7,
+      "min" => 1,
+      'category'=> 'general',
+    ),
+  );
+	public $pagesTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
+											"my_test_page" => "Page for Testing Prospective Plugin Methods");
+	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'),
+									'my_test_page' => array ('category' => 'Campaigns') );	
 	  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
   	public $escrowtbl, $listtbl;

@@ -44,23 +44,37 @@ if (isset($_POST['search']) || isset($_POST['update'])) {
      return;
    }
 }
-
-$ourpage = $_GET['page'];
-$ourname = $_GET['pi'];
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
-$currentUser = $_SESSION["logindetails"]["id"];
 $needle = '';
+$subadr = $_POST['submitadr'];
+$ok = ($_POST['submitOK'] == 'Yes')? 1 : 0;
 
 // Handle update of submission configuration
-/* if (isset($_POST['update'])) {
-	$fn = $sbm->cleanFormString($_POST['filename']) . '.' . $sbm->cleanFormString($_POST['extension']);
-	$desc = substr($sbm->cleanFormString($_POST['image_description']), 0, 255);
-	$query = sprintf("update %s set file_name='%s', short_name='%s', description='%s' where imgid=%d", $imgtbl, $fn, $sbm->cleanFormString($_POST['shortname']),$desc, $_POST['imageid']);
-	if (!Sql_query($query))
-		Warn(sprintf("Update of information for image %d failed!", $_POST['imageid']));
-
-} */
-
+if (isset($_POST['update'])) { // 'Save button clicked
+	$listid = $_POST['listid'];
+	if (!$ok) {  // Submit by mail changed to 'No' for existing configuration
+			$query = sprintf( "delete from %s where id = %d", $sbm->tables['list'], $listid);
+			Sql_Query($query);
+	}  else {
+		$server = $sbm->cleanFormString($_POST['pop3SErver']);
+		$subadr = $sbm->cleanFormString($subadr);
+		$pass = $sbm->cleanFormString($_POST['pw']);
+		$ftr = sql_escape(htmlspecialchars(htmlspecialchars_decode($_POST['footer'], ENT_XHTML), ENT_XHTML));
+	  	$method = $_POST['cmethod'] == 'Pipe'? 1 : 0;
+		$dispose = $_POST['mdisposal'] == 'Queue'? 1 : 0;
+		$cfm = $_POST['confirm'] == 'Yes'? 1 : 0;
+		if ((isset($_POST['template'])) &&  (is_numeric($_POST['template'])) && ($_POST['template'] > 0))
+			$tmplt = $_POST['template'];
+		else
+			$tmplt = 0;
+		$query = sprintf("insert into %s values (%d, '%s', '%s', '%s', %d, %d, %d, %d, '%s')", $sbm->tables['list'], $listid, $server, $subadr, $pass, $method, $cfm, $dispose, $tmplt, $ftr);
+		if (!Sql_Query($query)) {
+			$ln = listName($listid);
+			Warn(sprintf("Storage of information failed for list: !", $_POST['imageid']));
+		} 
+	}
+} 
+	
 // Initialize seartch
 if (isset($_POST['search']) || (isset($_POST['save']) && isset($_POST['needle']))){
 	$needle = $_POST['needle'];
