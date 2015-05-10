@@ -30,8 +30,10 @@ Unlike Sawey's mail2list plugin, the submitByMailPlugin allows for attachments t
 
 Current target dates
 
-May 15: complete writing the code and begin tesing
-June 15: complete local testing
-June 30: issue the first release through Github
+May 15: complete writing the code and begin testing.
 
-After June 30: deal with issues reported by early adopters 
+June 15: complete local testing.
+
+June 30: issue the first release through Github.
+
+After June 30: deal with issues reported by early adopters. 
