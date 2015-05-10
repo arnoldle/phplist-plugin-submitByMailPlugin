@@ -1,5 +1,4 @@
 <?php
-
 /**
  * 
  * @category  phplist
@@ -27,7 +26,6 @@
  * http://resources.phplist.com/plugins/submitByMail .
  * 
  */
-
 if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
 
 /* For paging the listing of the mail lists */
@@ -56,21 +54,27 @@ if (isset($_POST['update'])) { // 'Save button clicked
 			$query = sprintf( "delete from %s where id = %d", $sbm->tables['list'], $listid);
 			Sql_Query($query);
 	}  else {
-		$server = $sbm->cleanFormString($_POST['pop3SErver']);
+		$server = $sbm->cleanFormString($_POST['pop3server']);
 		$subadr = $sbm->cleanFormString($subadr);
 		$pass = $sbm->cleanFormString($_POST['pw']);
-		$ftr = sql_escape(htmlspecialchars(htmlspecialchars_decode($_POST['footer'], ENT_XHTML), ENT_XHTML));
-	  	$method = $_POST['cmethod'] == 'Pipe'? 1 : 0;
+		$ftr = sql_escape($_POST['footer']);
+		$method = $_POST['cmethod'] == 'Pipe'? 1 : 0;
 		$dispose = $_POST['mdisposal'] == 'Queue'? 1 : 0;
 		$cfm = $_POST['confirm'] == 'Yes'? 1 : 0;
 		if ((isset($_POST['template'])) &&  (is_numeric($_POST['template'])) && ($_POST['template'] > 0))
 			$tmplt = $_POST['template'];
 		else
 			$tmplt = 0;
-		$query = sprintf("insert into %s values (%d, '%s', '%s', '%s', %d, %d, %d, %d, '%s')", $sbm->tables['list'], $listid, $server, $subadr, $pass, $method, $cfm, $dispose, $tmplt, $ftr);
+		$query = sprintf("select submissionadr from %s where id=%d",$sbm->tables['list'], $listid);
+		if (!Sql_Num_Rows(Sql_Query($query))) {	// Sql_Query is supposed to return false when a query fails
+												// It does not seem to do that here.
+			$query = sprintf("insert into %s values (%d, '%s', '%s', '%s', %d, %d, %d, %d, '%s')", $sbm->tables['list'], $listid, $server, $subadr, $pass, $method, $cfm, $dispose, $tmplt, $ftr);
+		} else {
+			$query = sprintf("update %s set pop3server='%s', submissionadr='%s', password='%s', pipe_submission=%d, confirm=%d, queue=%d, template=%d, footer='%s' where id=%d", $sbm->tables['list'], $server, $subadr, $pass, $method, $cfm, $dispose, $tmplt, $ftr, $listid);
+		}
 		if (!Sql_Query($query)) {
 			$ln = listName($listid);
-			Warn(sprintf("Storage of information failed for list: !", $_POST['imageid']));
+			Warn(sprintf("Storage of information failed for list: %s!", $ln));
 		} 
 	}
 } 

@@ -121,12 +121,12 @@ $mypanel = <<<EOD
 <label style="display:inline !important;">Submission Address:&nbsp;&nbsp;<input type="text" name="submitadr" style="width:200px !important; 
 display:inline !important;" value="$user" maxlength="255" /></label><div id="pop" style="margin-top:-25px; margin-bottom: 5px;"><label style="display:inline !important;">Password:&nbsp;&nbsp;<input type="text" name="pw" 
 style="width:125px !important; display:inline !important;" value="$pass" maxlength="255" /></label>
-<label>Mail Submission POP3 Server (<span style="font-weight:bold; color:red;">Don't include a port number!</span>):<input type="text" name="pop3Server" value="$eml" maxlength="255" /></label></div>
+<label>Mail Submission POP3 Server (<span style="font-weight:bold; color:red;">Don't include a port number!</span>):<input type="text" name="pop3server" value="$eml" maxlength="255" /></label></div>
 <div id="formbtm">
 <label style="display:inline !important;">What to do with submitted message:</label>&nbsp;&nbsp;<input type="radio" name="mdisposal" 
 value="Save" $save /><label style="display:inline !important;">Save</label>&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="Queue" $queue /><label style="display:inline !important;">Queue</label>
 <br /><br /><label style="display:inline !important;">Confirm submission:</label>&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" $cfmyes /><label style="display:inline !important;">Yes</label>&nbsp;&nbsp;&nbsp;&nbsp;
-	<input type="radio" name="confirm" value="No" $cfmno /><label style="display:inline !important;">No</label>$template_form $footer_form
+<input type="radio" name="confirm" value="No" $cfmno /><label style="display:inline !important;">No</label>$template_form $footer_form
 <input class="submit" type="submit" name="submitter" value="Save");" />
 EOD;
 
@@ -145,13 +145,11 @@ if ($user)
 else
 	print ("var prevvals = false;\n");
 	
-// Go to HTML for the remainder of the javascript for convenience sake.
-?>
 // The following scripts makes sure that POP credentials can be entered only if the POP 
 // radio button has been pressed. They also validate the form for various issues.
 // The submission address is validated and the POP credentials are verified using ajax.
 // See the page verify.php
-         
+$str = <<<EOS;
 $(document).ready(function () {
     toggleFields(); //call this first so we start out with the correct visibility depending on the selected form values
     //this will call our toggleFields function every time the POP or Pipe radio buttons change
@@ -180,6 +178,11 @@ function toggleFields() {
         $("#formbtm").css("margin-top", "-20px");
        	$("#pop").hide();
     }
+}
+
+function mynotice(msg) {
+	$("#mydialog").html(msg);
+	$("#mydialog").dialog("open");
 }
 
 function myalert(msg) {
@@ -215,7 +218,7 @@ function myconfirm(msg) {
 }
 
 $("form[name=sbmConfigEdit]").submit(function( event ) {
-	var srvr = $("input[name=pop3Server]").val();
+	var srvr = $("input[name=pop3server]").val();
 	var sadr = $("input[name=submitadr]").val();
 	var pwd = $("input[name=pw]").val();
 	var ln = $("#mylistname").text();
@@ -240,19 +243,27 @@ $("form[name=sbmConfigEdit]").submit(function( event ) {
 	}
 	
 	event.preventDefault();
-	$.post( "plugins/submitByMailPlugin/verify.php", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
+	$.post( "plugins/submitByMailPlugin/emailajax.php", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
+			if (myjob == 'verify')
+				mynotice('Verifying POP credentials');
 			if (data == 'OK') {
 				if (($("input[name=mdisposal]:checked").val() == "Queue") && ($("input[name=confirm]:checked").val() == "No")) 
-					myconfirm("Are you <strong>absolutely sure</strong> that you want to queue messages mailed in, without confirming with the list administrator?", myform);
-				else {
+					myconfirm("Are you <strong>absolutely sure</strong> that you want to queue messages mailed in, without confirming with the list administrator?");
+				else
 					mysubmit(1);
-				}
 			} else {
 				if (data == 'NO')
 					myalert ("User name, server, and password do not verify!");
 				else
 					myalert("Invalid email address for message submission!");
 			}
-		}, "text");
+		}, "text").fail( function() {
+				myalert("Connection to server failed: cannot verify address!");
+				}
+			);
 });
 </script>
+EOS;
+
+print($str);
+?>

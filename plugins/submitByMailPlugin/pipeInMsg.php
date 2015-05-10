@@ -1,15 +1,16 @@
-<?php 
+<?php
+
 /**
+ * submitByMail plugin version 1.0a1
  * 
+ *
  * @category  phplist
  * @package   submitByMail Plugin
  * @author    Arnold V. Lesikar
  * @copyright 2014 Arnold V. Lesikar
  * @license   http://www.gnu.org/licenses/gpl.html GNU General Public License, Version 3
- *
- * This file is a part of the submitByMailPlugin for Phplist
- *
- * The submitByMailPlugin is free software: you can redistribute it and/or modify
+ * 
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -26,29 +27,27 @@
  * http://resources.phplist.com/plugins/submitByMail .
  * 
  */
-
-// Ajax file called from edit_list.php to validate email address and verify POP credentials
-require_once(dirname(__FILE__) ."/ajax.php");
-if (($_POST['job']=='validate') || ($_POST['job']=='verify')) {
-	$user=$_POST['user'];
-	if (!filter_var($user, FILTER_VALIDATE_EMAIL)) {
-		print('INVALID');
-		exit;
-	}
-}
-
-if ($_POST['job']=='validate') {
-	print ('OK');
-	exit;
-}
-
-if ($_POST['job']=='verify') {
-	$authhost= '{' . $_POST['server'] . sbmAjax::SERVER_TAIL . '}';
-	$pass = $_POST['pass'];
-	if ($mbox=@imap_open( $authhost, $user, $pass )) { 	// No warning if imap_open fails!
-        imap_close($mbox);
-        print ("OK");
-    } else
-        print ("NO");
-    exit;
-}
+ 
+ if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
+ $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
+ if (!($mbox = $cline['e'])) {
+ 	logEvent("Message discarded: no mailbox specified with pipe");
+ 	die();
+ }
+ if (!($this->lid = $sbm->getListId($mbox))) {
+ 	logEvent("Message discarded: no list associated with mailbox with pipe");
+ 	die();
+ }
+ $query = sprintf ("select pipe_submission from %s where id=%d", $this->tables['list'], $this->lid);
+ $row = Sql_Fetch_Array_Query($query);
+ if (!$row[0]) {
+ 	logEvent("Message discarded: list " . $this->lid . " not assigned to pipe submission.");
+ 	die();
+  }
+ ob_end_clean();
+ $msg = file_get_contents('php://stdin');
+ // Process the message
+ $sbm->receiveMsg($msg, $mbox);
+?>
+ 
+ 

@@ -27,15 +27,13 @@ Although I had given up this project earlier, I am again working on it, and have
 
 A Late Update
 
-May 8, 2015
-Development of this plugin is continuing. Code development is very nearly complete at this point, although nothing has yet been added to the Github repository.
+May 10, 2015
+Code development is now complete at this point, but there has been no significant testing done. The plugin is NOT READY FOR USE, the code is available here for inspection.
 
 Current target dates
 
-May 15: complete writing the code and begin testing.
-
 June 15: complete local testing.
 
-June 30: issue the first release through Github.
+June 30: publicize the first release.
 
 After June 30: deal with issues reported by early adopters. 
