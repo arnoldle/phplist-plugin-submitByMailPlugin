@@ -164,8 +164,8 @@ class submitByMailPlugin extends phplistPlugin
   	
   	function __construct()
     {
-    	// Ensure that we can't activate the plugin if we don't have the PEAR mime decoder
-    	// and the imap extension
+    	// Ensure that we don't crash Phplist and that we can't activate the plugin if 
+    	// we don't have the PEAR mime decoder and the imap extension
     	if ((!submitByMailGlobals::$have_decoder) || (!submitByMailGlobals::$have_imap)) {
     	
     		// Don't have prerequisites; make sure plug-in remains unitialized and disabled
@@ -776,51 +776,5 @@ class submitByMailPlugin extends phplistPlugin
 		}		
 	}  
 }
-
-
-/* 
-given a message:
-		1. Get the headers
-		2. Get mailbox receiving the messsage and convert that to a list id.
-		3. Get the address of the list owner; save it
-		4. Get the From: and verify that the sender is authorized
-			if not, quit and send a message to the list owner containing the subject of the discarded message
-			if it is, 
-				Save the sender address, if a superuser distinct from the listowner sent it.
-				(Need array of notification addresses -> list owner possibly plus a superuser, but no more than two addresses)
-		5. Get the subject -- save the subject for notifications
-			If the subject line is empty, quit and notify.
-		6. Check that the structure of the message is OK by looking at the headers.
-------------------------- 1 through 6 ARE WRITTEN!!!!!
-Authorized sender check OK
-Empty subject line check OK
-Pure text message OK
-Multipart/alternative with text/plain and text/html parts check OK
-		7. If all this checks out, escrow, save, or queue message as required by the list config.
-Put this all in a routine receiveMsg(), available from command line for a pipe.
-POP -->cycle through mailboxes, for each one cycle through messages. For each message do receiveMsg().
-	   
-Further notes, for saving and queueing we can drive send_core.php from plugin. 
-It remains to be seen how we handle attachments, but that can surely be done one way or
-the other.
-    	
-send_core.php line 291 -- handle attached files
-
-sendMail ($to, $subject, $message);
-
-Have handled the prerequisite problem. The plugin now cannot be activated unless the PEAR mime
-decoder and the imap extensions are available.
-
-Remaining to be written: 
-1.collectMails.php: the page to collect and process emails from the 
-mailboxes for the lists. This needs to serve both as a web page and a command line script.
-2. confirm.php, the web page through which a user can confirm an email
-3. A message to the sender containing a link to the confirmation page.
-
-In addition there is a lot of testing to be done. The easiest page to begin with is pipeInMsg.php
-
-
-    	 
-*/
 
 ?>
