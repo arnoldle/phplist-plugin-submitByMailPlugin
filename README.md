@@ -19,4 +19,19 @@ There will be page available to each list administrator to allow her/him to coll
 
 Messages submitted via a UNIX pipe than through POP will be escrowed or processed immediately.
 
-Although I had given up this project earlier, I am again working on it, and have thus far have completed the user interface for configuring lists for email message submission. 
+Although I had given up this project earlier, I am again working on it, and have thus far have completed the user interface for configuring lists for email message submission.
+
+A Late Update
+
+May 8, 2015
+Development of this plugin is continuing. The latest version is based on the imap PHP extension and the PEAR mime decoder instead of the Manuel Lemos' libraries. Code development is very nearly complete at this point, although nothing has yet been added to the Github repository.
+
+Unlike Sawey's mail2list plugin, the submitByMailPlugin allows for attachments to messages. Each list may have a different email address for submission of messages. The disposition of messages is configurable for each list. Confirmation of submission may be required, if wanted. A list can be configured to save submitted messages as a draft, or to queue messages immediately if the message is acceptable with attachments in the form of proper MIME. Other plugins are given access to submitted messages at the time the messages are saved and when messages are queued.
+
+Current target dates
+
+May 15: complete writing the code and begin tesing
+June 15: complete local testing
+June 30: issue the first release through Github
+
+After June 30: deal with issues reported by early adopters 
