@@ -27,7 +27,7 @@ A Late Update
 
 May 10, 2015
 
-Code development is now complete at this point, but there has been no significant testing done. The plugin is NOT READY FOR USE, the code is available here for inspection.
+Code development is now complete at this point, but there has been no significant testing done. The plugin is NOT READY FOR USE, the code is made available here for only for inspection.
 
 Current target dates
 
