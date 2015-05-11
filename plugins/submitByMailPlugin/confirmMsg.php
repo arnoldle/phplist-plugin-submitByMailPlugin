@@ -3,16 +3,9 @@ if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 
-// Make sure the button links to the edit page instead of trying to link inside the plugin
-function myButton($name, $desc) {
-	$str = PageLinkButton($name, $desc);
-	$str = str_replace("pi=submitByMailPlugin&", '', $str);
-	return $str;
-}
-
 $error = false;
-if (isset($_GET['tk'])) {
-	$token = $_GET['tk'];
+if (isset($_GET['mtk'])) {
+	$token = $_GET['mtk'];
 	$query = sprintf("select file_name, sender, subject, listid from %s where token='%s'", $sbm->tables['escrow'], $token);
 	// Don't need to check for expiration of the message, since an expired message will
 	// already have been removed as the plugin was constructed in order to load this page
@@ -38,14 +31,15 @@ if (!$error) {
 	if ($doqueue && $qerr) {
 		print ('<p style="font-size:14px;margin-top:100px;">Cannot queue message with subject: \''
 			. $sbm->subj . "'. The message has been saved as a draft.");
-			print ('<p>'. myButton("send&id=$mid", 'Edit Message') .'</p>');
+		print ('<p>'. $sbm->outsideLinkButton("send&id=$mid", 'Edit Message') .'</p>');
+		// The button above links OUTSIDE the plugin, unlike PageLinkButton()
 	} else if ($doqueue && !$qerr)
 		print ('<p style="font-size:14px;margin-top:100px;">The message with subject: \''
 			. $sbm->subj . "' has been queued for distribution to the list '" . listName($sbm->lid) . "'.</p>");
 	else {
 		print ('<p style="font-size:14px;margin-top:100px;">The message with subject: \''
 			. $sbm->subj . "' has been saved as a draft for later editing.</p>");
-		print ('<p>' . myButton("send&id=$mid", 'Edit Message') . '</p>');
+		print ('<p>' . $sbm->outsideLinkButton("send&id=$mid", 'Edit Message') . '</p>');
     }	
 } else {
 	if ($error == 1)

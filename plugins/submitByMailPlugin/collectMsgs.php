@@ -62,45 +62,47 @@ if ($GLOBALS['commandline']) {
 	print("Unsuccessful or interrupted connections: " . $count['lost'] . "\n"); 
 } else {
 	$content = <<<EOD
-<table style="width:60%; margin-top:20px; margin-left:auto; margin-right:auto; font-size:16px;"><tr><td>Messages escrowed:</td><td>&nbsp;</td></tr>
-<tr><td>Messages saved as draft:</td><td id="draft">&nbsp;</td></tr>
-<tr><td>Messages queued:</td><td id="queue">&nbsp;</td></tr>
-<tr><td>Unacceptable messages:</td><td id="error">&nbsp;</td></tr>
+<table style="width:60%; margin-top:20px; margin-left:auto; margin-right:auto; font-size:16px;"><tr><td>Messages escrowed:</td><td id="escrow" class="cntval">&nbsp;</td></tr>
+<tr><td>Messages saved as draft:</td><td id="draft" class="cntval">&nbsp;</td></tr>
+<tr><td>Messages queued:</td><td id="queue" class="cntval">&nbsp;</td></tr>
+<tr><td>Unacceptable messages:</td><td id="error" class="cntval">&nbsp;</td></tr>
 <tr><td>&nbsp;</td><td><hr style="border-top: 1px solid #8c8b8b;" /></td>
-<tr><td><strong>Total Messages processed:</strong></td><td id="total"><strong>&nbsp;</strong></td></tr>
+<tr><td><strong>Total Messages processed:</strong></td><td id="total" class="cntval"><strong>&nbsp;</strong></td></tr>
 <tr id="lrow" style="color:red; display:none"><td>Lost Connections:</td><td id="lost">&nbsp;</td></tr>
 </table>
 EOD;
 	$panel = new UIPanel("Collect Email Messages", $content); // Selector .panel .header h2
 	print($panel->display());
 	//<a id="cbtn" class="button" title="Collect Submitted Messages" onclick="getmsgs()">Collect Messages</a>
-	print('<div style="margin-left:22%; margin-top:15px;">'
-	. '<button id="cbtn" title="Collect Submitted Messages" onclick="getmsgs()">Collect Messages</button></p></div>' . "\n");
+	print('<div id="mybtn" style="margin-left:22%; margin-top:15px;">'
+	. '<button title="Collect Submitted Messages" onclick="getmsgs()">Collect Messages</button></div>' . "\n");
+	// We need a hidden button here linking to the page listing campaigns
 	$btm0=<<<ESD
 <script type="text/javascript">
 function getmsgs() {
 	var i = 0;
 	var email;
-	var adrs = [
+	
 ESD;
 	print $btm0;
 	$i = count($popAccts);
+	print ('var adrs = [');
 	foreach ($popAccts as $acct) {
 		print('"' . $acct . '"');
 		$i--;
-		if ($i) print(', '); else print	("];\n");	
+		if ($i) print(', ');
 	}
+	print ("];\n");
 $btm1 = <<<ESD2
 	var totl = 0;
-	var cumcnt = {error:0, escrow:0, queue:0, draft:0, lost:0}
-	mykeys = cumcnt.keys();
-	$("#cbtn").hide();
-	while ($("#acct" + i).length) {
-		if ($("#acct" + i).length) {
-			email = $("#acct" + i).text();
-			$('div.panel>div.header>h2').text('Collecting messages from ' + email);
-			$.post( "plugins/submitByMailPlugin/emailajax.php", {job:'getmsg', email:email}, function(data) {
-				mykeys = cumcnt.keys();
+	var cumcnt = {error:0, escrow:0, queue:0, draft:0, lost:0};
+	var mykeys = [];
+	for(var k in cumcnt) mykeys.push(k);
+	$('.cntval').text('0');
+	$("#mybtn").hide();
+	adrs.forEach(function(email) {
+		$('div.panel>div.header>h2').text('Collecting messages from ' + email);
+		$.post( "plugins/submitByMailPlugin/emailajax.php", {job:'getmsg', email:email}, function(data) {
 				mykeys.forEach( function (itm) {
 					cumcmt[itm] += data[itm];
 					totl += cumcnt[itm];
@@ -109,14 +111,13 @@ $btm1 = <<<ESD2
 				totl -= cumcnt.lost;
 				$("#total>strong").text(totl);
 				if (cumcnt.lost) $('#lost').text(cumcnt.lost).show();
-			});			
-			i++;
-		} else
-			$('div.panel>div.header>h2').text('All messages collected');
-	}	
-}
-</script>
+		});			
+	});
+	$('div.panel>div.header>h2').text('All messages collected');
+	$('#mybtn').html ('
 ESD2;
-	print ($btm1);
+	print ($btm1 . $sbm->outsideLinkButton("eventlog&start=0", 'View Event Log')
+		. "').show();\n" . '}' . "\n</script>");
+
 }
 ?>

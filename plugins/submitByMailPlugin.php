@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d1
+ * submitByMail plugin version 1.0d2
  * 
  *
  * @category  phplist
@@ -44,7 +44,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d1';
+    public $version = '1.0d2';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -119,7 +119,7 @@ class submitByMailPlugin extends phplistPlugin
       		'value' => 0,
     		'description' => 'POP3 timeout in seconds; set 0 to use default value',
     		'type' => "integer",
-      		'allowempty' => 0,
+      		'allowempty' => 1,
       		"max" => 120,
       		"min" => 0,
       		'category'=> 'campaign',),  				
@@ -270,6 +270,13 @@ class submitByMailPlugin extends phplistPlugin
 	
   	function cleanFormString($str) {
 		return sql_escape(strip_tags(trim($str)));
+	}
+	
+	// Make sure the button links to the edit page instead of trying to link inside the plugin
+	function outsideLinkButton($name, $desc, $url = '', $extraclass = '',$title = '' ) {
+		$str = PageLinkButton($name, $desc, $url, $extraclass, $title);
+		$str = str_replace("&amp;pi=submitByMailPlugin", '', $str);
+		return $str;
 	}
 	
 	function myFormStart($action, $additional) {
@@ -747,7 +754,7 @@ class submitByMailPlugin extends phplistPlugin
 			switch ($this->getDisposition($this->lid)) {
 				case 'escrow':
 					$tokn = $this->escrowMsg($msg);
-					$cfmlink = getConfig('burl' . "?pi=submitByMailPlugin&p=confirmMsg.php&tk=$tokn");
+					$cfmlink = getConfig('burl' . "?pi=submitByMailPlugin&amp;p=confirmMsg.php&amp;mtk=$tokn");
 					sendMail($this->sender, 'Message Received and Escrowed', 
 						"<p>A message with the subject '" . $this->subj . "'was received and escrowed.</p>\n" .
 						"<p>To confirm this message, please click the following link:" .
@@ -776,5 +783,4 @@ class submitByMailPlugin extends phplistPlugin
 		}		
 	}  
 }
-
 ?>
