@@ -34,6 +34,6 @@ Current target dates
 
 June 15: complete local testing.
 
-June 30: publicize the first release.
+June 30: release the first alpha version, 1.0a1
 
 After June 30: deal with issues reported by early adopters. 
