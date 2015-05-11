@@ -23,8 +23,6 @@ Messages submitted via a UNIX pipe than through POP will be escrowed or processe
 
 Plugins are given access to submitted messages at the time submitted messages are saved and when such messages are queued.
 
-Although I had given up this project earlier, I am again working on it, and have thus far have completed the user interface for configuring lists for email message submission.
-
 A Late Update
 
 May 10, 2015
