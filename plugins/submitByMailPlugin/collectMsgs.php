@@ -119,5 +119,11 @@ ESD2;
 	print ($btm1 . $sbm->outsideLinkButton("eventlog&start=0", 'View Event Log')
 		. "').show();\n" . '}' . "\n</script>");
 
-}
+}  
+
+/* We need to do some thing about the asynchronous ajax call above.
+Turning it into a synchronous call is deprecated in upcoming versions of javascript.
+Maybe put a spinner in the header of the panel and use some kind of timing loop to
+wait for completion of the ajax?
+*/
 ?>

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d2
+ * submitByMail plugin version 1.0d3
  * 
  *
  * @category  phplist
@@ -44,14 +44,14 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d2';
+    public $version = '1.0d3';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
     public $coderoot; 	// coderoot relative to the phplist admin directory
     public $DBstruct =array (	//For creation of the required tables by Phplist
     		'escrow' => array(
-    			"token" => array("varchar(35) not null primary key", "Token sent to confirm escrowed submission"),
+    			"token" => array("varchar(10) not null primary key", "Token sent to confirm escrowed submission"),
     			"file_name" => array("varchar(255) not null","File name for escrowed submission"),
     			"sender" => array("varchar(255) not null", "From whom?"),
     			"subject" => array("varchar(255) not null default '(no subject)'","subject"),
@@ -208,16 +208,16 @@ class submitByMailPlugin extends phplistPlugin
     		$this->allowedMimes[trim($partial[0])][] = trim($partial[1]);    	
     	}
     	
+    	// Don't let the admin add to the multipart types
+    	$this->allowedMimes['multipart'] = array('mixed', 'alternative', 'related');
+    	$this->allowedMain = array('text' => array('plain', 'html'), "multipart" => $this->allowedMimes['multipart']);
+    	
     	$this->pop_timeout = (int) getConfig("popTimeout");
     	if ($this->pop_timeout) {
     		imap_timeout (IMAP_OPENTIMEOUT, $this->pop_timeout);
     		imap_timeout (IMAP_READTIMEOUT, $this->pop_timeout);
     		imap_timeout (IMAP_WRITETIMEOUT, $this->pop_timeout);
     	}
-    	
-    	// Don't let the admin add to the multipart types
-    	$this->allowedMimes['multipart'] = array('mixed', 'alternative', 'related');
-    	$this->allowedMain = array('text' => array('plain', 'html'), "multipart" => $this->allowedMimes['multipart']);
     	
     	// Make sure that we don't show the message collection page if we don't allow
     	// manual collection of messages, remove that page from the menus.
@@ -246,6 +246,7 @@ class submitByMailPlugin extends phplistPlugin
     
     // Delete expired messages in escrow
     function deleteExpired() {
+    	// Also should perhaps remove the attachments for the expired messages as well?
     	$query = sprintf("select token, file_name from %s where expires < %d", $this->tables['escrow'], time());
     	$result = Sql_Query ($query);
     	while ($row = Sql_Fetch_Row($result)) {
@@ -264,7 +265,7 @@ class submitByMailPlugin extends phplistPlugin
     	return $this->pageTitles;
 	}
 	
-	function generateRandomString($length = 35) {
+	function generateRandomString($length = 10) {
     	return substr(sha1(mt_rand()), 0, $length);
 	}
 	
@@ -398,17 +399,11 @@ class submitByMailPlugin extends phplistPlugin
     }
     
     function badMime($apart, $lvl) {
-    	$decoder = new Mail_mimeDecode($apart);
-		$params['include_bodies'] = false;
-		$params['decode_bodies']  = false;
-		$params['decode_headers'] = true;
-		$out = $decoder->decode($params);
-		$hdrs = $out->headers;
-		
     	$mimes = $this->allowedMimes;
     	$mains = $this->allowedMain;
     	$c1 = $this->std($apart->ctype_primary); 
     	$c2 = $this->std($apart->ctype_secondary);
+    	if (isset($apart->disposition)) $dp = $this->std($apart->disposition);
 
     	if ($lvl > 2)
     		return "toodeep"; 	// Mime parts too deeply nexted
@@ -427,9 +422,12 @@ class submitByMailPlugin extends phplistPlugin
     	} else { // if not multipart, is it OK as attachment or inline?
     	
     		// Do we have a file name? Treat the part as an attachment
+    		// But if its an image it could also be inline even with a file name
     		$havefn = $this->getFn($apart);
-    		if ($havefn && !ALLOW_ATTACHMENTS)
-    			return "noattach";		// Have an attachment when none or allowed.
+    		if ($havefn) {
+    			if (!ALLOW_ATTACHMENTS) return "noattach";	// Have an attachment when none or allowed.
+    			if (($dp == 'inline') && ($c1 == 'image')) return "badinlin";  // inline images not allowed
+    		}
     
     		// If no file name, but have something other than text or multipart
     		// Treat it as inline and an error
@@ -462,14 +460,16 @@ class submitByMailPlugin extends phplistPlugin
 		$this->lid = $this->getListID($mbox);
 			
 		$authSenders[] = $this->getListAdminAdr($this->lid); // Admin for this list
-		
 		// Authorized senders are the list administrator and superusers
 		$this->sender = trim($hdrs['from']);
+
 		if (!$this->sender) return "nodecode";
+		
 		if (preg_match('/<(.*)>/', $this->sender, $match))
 			$from = trim($match[1]);
+		else
+			$from = $this->sender;
 		$authorized = ($from == $authSenders[0])? 1 : 0; // Ordinary list admin cannot send to lists he doesn't aadminister
-		
 		if (!$authorized) { // Check on the superusers
 			$supers = $this->getSuperAdrs();
 			$authorized = in_array($from, $supers);
@@ -558,6 +558,7 @@ class submitByMailPlugin extends phplistPlugin
 	// from the Phplist file sendcore.php. We save the message data only after setting
 	// the message status.
 	function saveMessageData($messagedata) {
+		global $tables;
 		$query = sprintf('update %s  set '
      		. '  subject = ?'
      		. ', fromfield = ?'
@@ -598,34 +599,26 @@ class submitByMailPlugin extends phplistPlugin
      	return $this->mid; 	// Return private message ID so we can use it in other files
 	}
 	
-	// Do the actual decoding of bodies of message
-	// Before this function is called, we have already determined that all of the 
-	// message parts are acceptable
-	function decodePart ($apart, &$msgdata) {
-		$decoder = new Mail_mimeDecode($msg);
-		$params['include_bodies'] = true;
-		$params['decode_bodies']  = true;
-		$params['decode_headers'] = true;
-		$out = $decoder->decode($params);
-		$hdrs = $out->headers;
+	function parseaPart($apart) {
+		global $tables;
+		$hdrs = $apart->headers;
 		$c1 = $this->std($apart->ctype_primary); 
     	$c2 = $this->std($apart->ctype_secondary);
-		// If multipart, check the parts	
+    	// If multipart, check the parts	
    		if ($c1 == 'multipart') {
     		foreach ($apart->parts as $mypart) {
-   				$this->decodePart ($mypart, $msgdata);
+  				$this->parseaPart ($mypart);
     		}  		
     	} else { // if not multipart, is it OK as attachment or inline?
-    	
 			// Do we have a file name? Treat the part as an attachment 
-    		if (($attachname = $this->getFn($apart)) && strlen($out->body)) {
+    		if (($attachname = $this->getFn($apart)) && strlen($apart->body)) {
     			// Handle atttachment
     			list($name,$ext) = explode(".",basename($attachname));
         		# create a temporary file to make sure to use a unique file name to store with
         		$newfile = tempnam($GLOBALS["attachment_repository"],$name);
         		unlink ($newfile); 	// Want the name, not the file that tempnam creates
         		$newfile .= ".".$ext;
-        		file_put_contents($newfile, $out->body);
+        		file_put_contents($newfile, $apart->body);
          		Sql_query(sprintf('insert into %s (filename,remotefile,mimetype,description,size) values("%s","%s","%s","%s",%d)',
           			$tables["attachment"],
           			basename($newfile), 
@@ -639,11 +632,23 @@ class submitByMailPlugin extends phplistPlugin
           			$tables["message_attachment"],$this->mid,$attachmentid));
           	}  else {	// if not multipart and not attachment must be text/plain or text/html
     				if ($c2 == 'plain')
-    					$this->textmsg .= $out->body;
+    					$this->textmsg .= $apart->body;
     				else
-    					$this->htmlmsg .= $out->body; 
+    					$this->htmlmsg .= $apart->body; 
     		} 
-    	} 	
+    	} 
+    }
+    
+	// Do the actual decoding of bodies of message
+	// Before this function is called, we have already determined that all of the 
+	// message parts are acceptable
+	function decodeMime ($msg) {
+		$decoder = new Mail_mimeDecode($msg);
+		$params['include_bodies'] = true;
+		$params['decode_bodies']  = true;
+		$params['decode_headers'] = true;
+		$out = $decoder->decode($params);
+		$this->parseApart($out);	
 	} 
 	
 		// Put default message values into the Phplist database and get an ID for the 
@@ -684,27 +689,28 @@ class submitByMailPlugin extends phplistPlugin
       	
       	// Now decode the MIME. Load attachments into database. Get text and html msg
       	$this->htmlmsg = $this->textmsg = '';
-      	$this->decodePart($msg);
+      	$this->decodeMime($msg);
+      	$messagedata["sendformat"] = 'HTML';      		
       	if ($this->htmlmsg) {
       		$messagedata["message"] = $this->cleanHtml($this->htmlmsg);
-      		$messagedata["sendformat"] = 'HTML';
       		if ($this->textmsg)
-      			$messagedata["textmessage"];
+      			$messagedata["textmessage"] = $this->textmsg;
       	} else {
-      		$messagedata["message"] = $this->textmsg;
-      		$messagedata["sendformat"] = 'text';
-      	}
-        return $messagedata;
+      		$messagedata["message"] = "<p>" . preg_replace("@<br />\s*<br />@U", "</p><p>", nl2br($this->textmsg)) . "</p>" ;
+      		$messagedata["textmessage"] = $this->textmsg;
+       	}
+		return $messagedata;
 	}  
 	
 	// Update the status for the current message
 	function updateStatus($status) {
-		$query = sprintf("update %s set status=%s where id=%d", $GLOBALS['tables']['message'], $this->mid);
+		$query = sprintf("update %s set status='%s' where id=%d", $GLOBALS['tables']['message'], $status, $this->mid);
 		sql_query($query);
 	}
 	
 	function saveDraft($msg) {
 		$msgData = $this->loadMessageData ($msg); 	// Default messagedata['status'] is 'draft'
+
 		// Allow plugins manipulate data or save it somewhere else
   		foreach ($GLOBALS['plugins'] as $pluginname => $plugin)
   			$plugin->sendMessageTabSave($this->id,$msgData);
@@ -754,22 +760,26 @@ class submitByMailPlugin extends phplistPlugin
 			switch ($this->getDisposition($this->lid)) {
 				case 'escrow':
 					$tokn = $this->escrowMsg($msg);
-					$cfmlink = getConfig('burl' . "?pi=submitByMailPlugin&amp;p=confirmMsg.php&amp;mtk=$tokn");
+					$cfmlink = getConfig('burl') . "?pi=submitByMailPlugin&amp;p=confirmMsg.php&amp;mtk=$tokn";
 					sendMail($this->sender, 'Message Received and Escrowed', 
-						"<p>A message with the subject '" . $this->subj . "'was received and escrowed.</p>\n" .
+						"<p>A message with the subject '" . $this->subj . "' was received and escrowed.</p>\n" .
 						"<p>To confirm this message, please click the following link:" .
-						'<a href="' . $cfmlink . '">' . '"$cfmlink</a>.' . "</p>\n<p> You may need to login before reaching this page.</p>"
+						'<a href="' . $cfmlink . '">' . "$cfmlink</a>." . "</p>\n<p> You may need to login before reaching this page.</p>"
 						); 
+					logEvent("A message with the subject '" . $this->subj . "' was escrowed.");
 					if (is_array($count)) $count['escrow']++;
 					break;
 				case 'queue': 
 					if ($err = $this->queueMsg($msg)) {
 						sendMail($this->sender, 'Message Received but NOT Queued', 
-							"A message with the subject '" . $this->subj . "'was received. It was not queued because of the following error(s): " .$err);
+							"<p>A message with the subject '" . $this->subj . 
+								"' was received. It was not queued because of the following error(s): $err<p> ");
+						logEvent("A message with the subject '" . $this->subj ."' received but not queued because of a problem.");
 						if (is_array($count)) $count['draft']++;
 					} else {
 						sendMail($this->sender, 'Message Received and Queued', 
 						"A message with the subject '" . $this->subj . "' was received and is queued for distribution.");
+						logEvent("A message with the subject '" . $this->subj ."' was received and queued.");
 						if (is_array($count)) $count['queue']++;
 					}
 					break;
@@ -777,10 +787,12 @@ class submitByMailPlugin extends phplistPlugin
 					$this->saveDraft($msg);
 					sendMail($this->sender, 'Message Received and Queued', 
 						"A message with the subject '" . $this->subj . "' was received and has been saved as a draft.");
+					logEvent("A message with the subject '" . $this->subj ."' was received and and saved as a draft.");
 					if (is_array($count)) $count['draft']++;
 					break;
 			}
 		}		
-	}  
+	} 
+
 }
 ?>

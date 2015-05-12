@@ -149,7 +149,7 @@ else
 // radio button has been pressed. They also validate the form for various issues.
 // The submission address is validated and the POP credentials are verified using ajax.
 // See the page verify.php
-$str = <<<EOS;
+$str = <<<EOS
 $(document).ready(function () {
     toggleFields(); //call this first so we start out with the correct visibility depending on the selected form values
     //this will call our toggleFields function every time the POP or Pipe radio buttons change
