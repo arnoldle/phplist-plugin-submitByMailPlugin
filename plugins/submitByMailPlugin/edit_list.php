@@ -159,13 +159,13 @@ $(document).ready(function () {
     $("#mydialog").dialog({
     		modal: true,
     		autoOpen: false,
-    		width: 500
+    		width: 500,
     	}); 
-	$(".ui-dialog-titlebar-close").css("display","none ");
+	$(".ui-dialog-titlebar-close").css("display","none");
 	$(".ui-dialog-content").css("margin", "10px");
 	$(".ui-dialog").css("border","3px solid DarkGray");
 	$(".ui-dialog-content").css("font-size", "18px");
-  });
+	});
 
 
 //this toggles the visibility of our the fields for input of POP credentials depending on the currently 
@@ -182,6 +182,7 @@ function toggleFields() {
 
 function mynotice(msg) {
 	$("#mydialog").html(msg);
+	$("#mydialog").dialog("option",{buttons:{}});
 	$("#mydialog").dialog("open");
 }
 
@@ -189,7 +190,7 @@ function myalert(msg) {
 	$("#mydialog").html(msg);
 	$("#mydialog").dialog("option",{buttons:{"OK": function() {
         				$(this).dialog("close");}}});
-	$("#mydialog").dialog("open");
+    $("#mydialog").dialog("open");
 }
 
 function mysubmit(upd) {
@@ -203,7 +204,7 @@ function mysubmit(upd) {
 function myconfirm(msg) {
 	$("#mydialog").html(msg);
 	$("#mydialog").dialog("option",
-		{buttons:{"Yes": function() 
+		{buttons:{"Yes": function()
 			{
 				mysubmit(1);
 				$(this).dialog("close");
@@ -214,7 +215,7 @@ function myconfirm(msg) {
         	}
         }
     });
-	$("#mydialog").dialog("open");	
+    $("#mydialog").dialog("open");	
 }
 
 $("form[name=sbmConfigEdit]").submit(function( event ) {
@@ -223,7 +224,7 @@ $("form[name=sbmConfigEdit]").submit(function( event ) {
 	var pwd = $("input[name=pw]").val();
 	var ln = $("#mylistname").text();
 	var myjob = ($("input[name=cmethod]:checked").val() =="Pipe") ? "validate" : "verify";
-	    		
+		    		
 	if ($("input[name=submitOK]:checked").val() == "No") {
 		if (!prevvals) 
 			mysubmit(0);
@@ -238,14 +239,20 @@ $("form[name=sbmConfigEdit]").submit(function( event ) {
 	}
 	
 	if ((adrs != null) && (adrs[sadr] != null) && (adrs[sadr] != ln)) {
-		myalert("Submission address already used by another list. <strong>Two lists cannot have the same submission address.</strong>");
+		myalert("This submission address is already used by another list. <strong>Two lists cannot have the same submission address.</strong>");
 		return false;
 	}
 	
 	event.preventDefault();
+	if (myjob == 'verify') {
+		if ((srvr=='') || (pwd=='')) {
+			myalert("You cannot collect messages with POP without specifying a server and a password!");
+			return false;
+		}
+		mynotice('Verifying POP credentials<img style="width:40px; height:40px; display:block; margin-left:auto; margin-right:auto; margin-top: 10px;" src="plugins/submitByMailPlugin/spin.gif">');
+	}
+	
 	$.post( "plugins/submitByMailPlugin/emailajax.php", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
-			if (myjob == 'verify')
-				mynotice('Verifying POP credentials');
 			if (data == 'OK') {
 				if (($("input[name=mdisposal]:checked").val() == "Queue") && ($("input[name=confirm]:checked").val() == "No")) 
 					myconfirm("Are you <strong>absolutely sure</strong> that you want to queue messages mailed in, without confirming with the list administrator?");

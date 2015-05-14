@@ -26,28 +26,28 @@
  * http://resources.phplist.com/plugins/submitByMail .
  * 
  */
-
+ 
 // Ajax file called from edit_list.php to validate email address, verify POP credentials,
 // or submit a message to Phplist
 require_once(dirname(__FILE__) ."/sbmGlobals.php");
-if (($_POST['job']=='validate') || ($_POST['job']=='verify')) {
-	$user=$_POST['user'];	// $user is the email address we're working with
-	if (!filter_var($user, FILTER_VALIDATE_EMAIL)) {
-		print('INVALID');
-		exit;
-	}
-}
-
 switch ($_POST['job']) {
 	case 'validate': 
-		{
-			print ('OK');
-			exit;
-		}
 	case 'verify': 
-		{
-			$authhost= '{' . $_POST['server'] . submitByMailGlobals::SERVER_TAIL . '}';
+		{   
+			$user=$_POST['user'];	// $user is the email address we're working with
+			if (!filter_var($user, FILTER_VALIDATE_EMAIL)) {
+				print('INVALID');
+				exit;
+			}
+			
+			if ($_POST['job']=='validate') {
+				print ('OK');
+				exit;
+			}
+ 
+  			$authhost= '{' . $_POST['server'] . submitByMailGlobals::SERVER_TAIL . '}';
 			$pass = $_POST['pass'];
+
 			if ($mbox=@imap_open( $authhost, $user, $pass )) { 	// No warning if imap_open fails!
         		imap_close($mbox);
         		print ("OK");
