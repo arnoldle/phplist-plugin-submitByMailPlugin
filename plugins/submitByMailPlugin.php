@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d4
+ * submitByMail plugin version 1.0d5
  * 
  *
  * @category  phplist
@@ -44,7 +44,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d4';
+    public $version = '1.0d5';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -56,6 +56,7 @@ class submitByMailPlugin extends phplistPlugin
     			"sender" => array("varchar(255) not null", "From whom?"),
     			"subject" => array("varchar(255) not null default '(no subject)'","subject"),
     			"listid" => array("integer not null","List ID"),
+    			"listsadressed" => array("blob not null", "Array of list ids targeted, serialized"),
     			"expires" => array ("integer not null", "Unix time when submission expires without confirmation")
 			), 
 			'list' => array(
@@ -134,8 +135,10 @@ class submitByMailPlugin extends phplistPlugin
 	// Properties particular to this plugin  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
   	
-  	private $errMsgs = array("nodecode" => 'Msg discarded: cannot decode',
+  	private $errMsgs = array(
+  							"nodecode" => 'Msg discarded: cannot decode',
   							"unauth" => "List '%s': Msg discarded; unauthorized sender",
+  							'unauthp' => "List '%s': Msg discarded: unauthorized list(s) addressed",
   							"nosub" => "List '%s': Msg discarded; empty subject line",
   							"badmain" => "List '%s': Msg discarded; bad type for main message",
   							"badtyp" => "List '%s': Msg discarded; mime type not allowed",
@@ -152,7 +155,8 @@ class submitByMailPlugin extends phplistPlugin
 	// Parameters for the message we are dealing with currently
 	// If only PHP had genuine scope rules, so many private class properties would not 
 	// be necessary!!
-	public $lid;		// ID for list receiving current message
+	public $lid;		// ID of the list whose mailbox is handling the message (the first list sent to)
+	public $alids = array();		// IDs for the lists receiving current message
 	public $sender;		// Sender of the current message
 	public $subj;		// Subject line of the current message
 	private $mid;		// Message ID for current message being saved or queued
@@ -377,6 +381,17 @@ class submitByMailPlugin extends phplistPlugin
     	return $out;
     }
     
+    function getOwnerLids ($email) {
+    	$out = array();
+    	$A = $GLOBALS['tables']['list'];
+    	$B = $GLOBALS['tables']['admin'];
+    	$query = sprintf ("select $A.id from $A left join $B on $B.id=$A.owner where $B.email='%s'", $A, $A, $B, $B, $A, $B, $email);
+    	$result = Sql_Query($query);
+    	while ($row = Sql_Fetch_Row($result))
+    		$out[] = $row[0];
+    }
+    
+    // Return addresses of all superusers
     function getSuperAdrs() {
     	$query = sprintf ("select email from %s where superuser=1", $GLOBALS['tables']['admin']);
     	$res = Sql_query($query);
@@ -388,6 +403,13 @@ class submitByMailPlugin extends phplistPlugin
     function std($str) {
     	return strtolower(trim($str));
     }
+    
+    // Get out the email address from a string of the form Name<email_address>
+	function cleanAdr ($adr) {
+		if (preg_match('/<(.*)>/', $adr, $match))
+			return trim($match[1]);
+		return trim($adr);
+	}
     
     // Get filename associated with a part if there is one
     function getFn($apart) {
@@ -441,45 +463,70 @@ class submitByMailPlugin extends phplistPlugin
     
  	// Check if the message is acceptable; $mbox is the address at which the email arrived.
     // We need this so that in case of a submission to multiple lists we can tell
-    // which list we are sending this instance of the message to.
+    // which list we are sending this instance of the message to. In such a case we do
+    // not do anything, unless $mbox represents the first list the message is sent to.
+    // If there is a problem with the message, returns a short error string.
     //
-    // If there is a problem with the message, this function notifies the list administrator 
-    // (and the sender, if the sender is a superuser), logs the problem, and then returns false.
-    // Otherwise the function simply returns true.
-    //
-    // As a side effect this function sets $this->lid and $this->sender for use in
+    // As a side effect this function sets $this->lids and $this->sender for use in
     // further processing the message
     function badMessage ($msg, $mbox) {
+    	$isSuperUser = $isAdmin = 0;
+    	$mbox = $this->cleanAdr($mbox);	// The user might screw up the argument in a pipe
     	$decoder = new Mail_mimeDecode($msg);
 		$params['include_bodies'] = false;
 		$params['decode_bodies']  = false;
 		$params['decode_headers'] = true;
 		$out = $decoder->decode($params);
 		$hdrs = $out->headers;
-		$this->subj = trim($hdrs['subject']); 		
-		$this->lid = $this->getListID($mbox);
-			
-		$authSenders[] = $this->getListAdminAdr($this->lid); // Admin for this list
-		// Authorized senders are the list administrator and superusers
-		$this->sender = trim($hdrs['from']);
-
-		if (!$this->sender) return "nodecode";
 		
-		if (preg_match('/<(.*)>/', $this->sender, $match))
-			$from = trim($match[1]);
-		else
-			$from = $this->sender;
-		$authorized = ($from == $authSenders[0])? 1 : 0; // Ordinary list admin cannot send to lists he doesn't aadminister
-		if (!$authorized) { // Check on the superusers
-			$supers = $this->getSuperAdrs();
-			$authorized = in_array($from, $supers);
-			if (!$authorized)
-				return "unauth";
+		/* ---------------------------------*/
+		// Find which addresses are actually lists to which the message is being sent
+		// Some of the addresses in To: and Cc: may not be one of our lists.
+		
+		// First find the submission addresses for our lists
+		$sbmAdrs = array();	
+		$arr = $this->getTheLists();
+		foreach ($arr as $val) {
+			if (!$val[2]) continue;
+			$sbmAdrs[] = $val[2];		
 		}
 		
-		// We do not allow an empty subject line in messages submitted by email
-		if ($this->subj == '')
-			return "nosub";
+		// What lists are addressed by the message?
+		$listsSentTo = array();
+		if (!$hdrs['to']) return 'nodecode';
+		$tos = explode(',', $hdrs['to']) . explode(',', $hdrs['cc']);											
+		foreach ($tos as $adr) {
+			$adr = $this->cleanAdr($adr);
+			if (in_array($adr, $sbmAdrs)) $listsSentTo[] = $adr;	 
+		}
+		
+		// The first list in the address list is the one which will handle the message
+		// If the current mailbox does not represent that list, quit
+		if ($mbox != $listsSentTo[0]) return 'not_ours';
+		/* ---------------------------------*/
+		
+		
+		$this->lid = $this->getListID($mbox);
+		$this->subj = trim($hdrs['subject']); 		
+		
+		/* ---------------------------------*/
+		// Check authorizations for the lists addressed	
+		$authSenders[] = $this->getListAdminAdr($this->lid); // Admin for this list
+		// Authorized senders are the list administrator and superusers
+		if (!$hdrs['from']) return "nodecode";
+		$this->sender = $this->cleanAdr($hdrs['from']);
+		$isSuperUser = in_array($this->sender, $this->getSuperAdrs());
+		if ($isSuperUser) $isAdmin = 1;			// Can send to all lists
+		else $isAdmin = in_array($this->sender, $this->getAdminAdrs());
+		if (!$isAdmin) return 'unauth';	
+		if (!$isSuperUser) {					// If not a super user, can send only to own lists
+			$owned = $this->getOwnerLids($this->sender);
+			foreach ($listsSentTo as $itm)
+				if (!in_array($itm, $owned)) return 'unauthp';
+		}	
+		
+		$this->alids = $listsSentTo;		// Authorized for all lists addressed
+		/* ---------------------------------*/
 		
 		// Check that we have an acceptable MIME structure
 		$mains = $this->allowedMain;
@@ -508,7 +555,7 @@ class submitByMailPlugin extends phplistPlugin
 		$tokn = $this->generateRandomString();
 		$xpir = time() + self::ONE_DAY * $this->holdTime;
 		$query = sprintf ("insert into %s values ('%s', '%s', '%s','%s', %d, %d)", $this->tables['escrow'], $tokn, $fname, 
-			sql_escape($this->sender), sql_escape($this->subj), $this->lid, $xpir);
+			sql_escape($this->sender), sql_escape($this->subj), $this->lid, sql_escape(serialize ($this->alids)), $xpir);
 		Sql_Query($query);
 		return $tokn;
 	}
@@ -596,6 +643,7 @@ class submitByMailPlugin extends phplistPlugin
      		, $messagedata["sendformat"]
      		, $messagedata["template"]
      		, $this->mid));
+     	setMessageData($this->mid, 'targetlist', $this->alids);
      	return $this->mid; 	// Return private message ID so we can use it in other files
 	}
 	
@@ -718,7 +766,6 @@ class submitByMailPlugin extends phplistPlugin
 	}
 	
 	function queueMsg($msg) {
-		// Need to test this concept!!!!
 		$msgData = $this->loadMessageData ($msg);
 		// Make sure the message has been properly saved, including giving the 
 		// plugins a chance to participate.
@@ -736,7 +783,7 @@ class submitByMailPlugin extends phplistPlugin
   		}
   		if (!$queueErr) {
  			$this->updateStatus('submitted');
-			return false;
+			return '';
 		} else
 			return $queueErr;
 	}
@@ -746,6 +793,7 @@ class submitByMailPlugin extends phplistPlugin
 	// $count is an optional array with the proper items to count the outcomes.
 	function receiveMsg($msg, $mbox, &$count=null) {
 		if ($result = $this->badMessage($msg, $mbox)) {
+			if ($result == 'not_ours') return;	// Quit if the current message was not sent to the address of the current list
 			logEvent(sprintf($this->errMsgs[$result], listName($this->lid)));
 			if (($result != "unauth") && ($result != "nodecode")) {
 				// Edit the log entry for the email to the sender
@@ -757,7 +805,16 @@ class submitByMailPlugin extends phplistPlugin
 			}
 			if (is_array($count)) $count['error']++;
 		} else { 
-			switch ($this->getDisposition($this->lid)) {
+			$err = '';
+			if (!$this->subj) {
+				$this->subj = '(no subject)';
+				$err = "Message cannot be sent with missing subject line.\n";
+			}	
+			if (count($this->alids) > 1)
+				$disposn = 'escrow';
+			else	
+				$disposn = 	$this->getDisposition($this->lid);
+			switch ($disposn) {
 				case 'escrow':
 					$tokn = $this->escrowMsg($msg);
 					$cfmlink = getConfig('burl') . "?pi=submitByMailPlugin&amp;p=confirmMsg.php&amp;mtk=$tokn";
@@ -770,7 +827,7 @@ class submitByMailPlugin extends phplistPlugin
 					if (is_array($count)) $count['escrow']++;
 					break;
 				case 'queue': 
-					if ($err = $this->queueMsg($msg)) {
+					if ($err = $err . $this->queueMsg($msg)) {
 						sendMail($this->sender, 'Message Received but NOT Queued', 
 							"<p>A message with the subject '" . $this->subj . 
 								"' was received. It was not queued because of the following error(s): $err<p> ");
@@ -785,7 +842,7 @@ class submitByMailPlugin extends phplistPlugin
 					break;
 				case 'save':	
 					$this->saveDraft($msg);
-					sendMail($this->sender, 'Message Received and Queued', 
+					sendMail($this->sender, 'Message Received and Saved as a Draft', 
 						"A message with the subject '" . $this->subj . "' was received and has been saved as a draft.");
 					logEvent("A message with the subject '" . $this->subj ."' was received and and saved as a draft.");
 					if (is_array($count)) $count['draft']++;
@@ -794,5 +851,10 @@ class submitByMailPlugin extends phplistPlugin
 		}		
 	} 
 }
+
+/* Set up a toggle for processQueue and collectMsgs so that you can use only  
+one script in cron to do both jobs. You can create and initialize the toggle
+when the plugin is intialized 
+*/
 
 ?>
