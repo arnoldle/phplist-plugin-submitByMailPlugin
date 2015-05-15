@@ -17,7 +17,7 @@ if (isset($_GET['mtk'])) {
 		$sbm->alids =unserialize($msgdata['listsaddressed']);
 		$fn = $sbm->escrowdir . $msgdata['file_name'];
 		$msg = file_get_contents($sbm->escrowdir . $msgdata['file_name']);
-		if ($doqueue = $sbm->doQueueMsg ($this->lid)) {
+		if ((count($sbm->alids) == 1) && ($doqueue = $sbm->doQueueMsg ($this->lid))) {
 			if ($qerr = $sbm->queueMsg($msg)) $mid = $sbm->saveDraft($msg);
 		} else			
 			$mid = $this->saveDraft($msg);

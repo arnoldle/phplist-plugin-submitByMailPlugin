@@ -270,7 +270,11 @@ $("form[name=sbmConfigEdit]").submit(function( event ) {
 			);
 });
 </script>
+<style>
+.ui-dialog{top:30% !important}
+</style>
 EOS;
-
+// <style> above is there to allow vertical centering of these modal dialogs. Special thanks to 
+// Mariela Zarate for coming up with this.
 print($str);
 ?>

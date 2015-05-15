@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d5
+ * submitByMail plugin version 1.0d6
  * 
  *
  * @category  phplist
@@ -44,7 +44,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d5';
+    public $version = '1.0d6';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -113,7 +113,7 @@ class submitByMailPlugin extends phplistPlugin
     		'value' => 1,
     		'description' => 'Use browser to collect messages submitted by POP (Yes or No)',
     		'type' => "boolean",
-      		'allowempty' => 0,
+      		'allowempty' => 1,
       		'category'=> 'campaign',), 
       	
       	"popTimeout" => array (
@@ -226,8 +226,8 @@ class submitByMailPlugin extends phplistPlugin
     	// Make sure that we don't show the message collection page if we don't allow
     	// manual collection of messages, remove that page from the menus.
     	if (!getConfig("manualMsgCollection")) {
-    		$this->delArrayItem(1, $topMenuLinks);
-    		$this->delArrayItem(1, $pageTitles);
+    		$this->delArrayItem("collectMsgs", $this->topMenuLinks);
+    		$this->delArrayItem('collectMsgs', $this->pageTitles);
     	}
     	
     	// Delete escrowed messages that have expired
@@ -242,15 +242,19 @@ class submitByMailPlugin extends phplistPlugin
    			saveConfig('burl', $GLOBALS['scheme'] . "://" . $GLOBALS['website'] . $GLOBALS['pageroot'] . '/admin/');
     	parent::initialise();
     } 
-    
-    function delArrayItem($ndx, &$ary){
-    	unset ($ary[$ndx]);
+
+/* Note to self: Must go through and test utility methods individually as much as possible. 
+After this is done, we can then go through and test the central methods providing the 
+functionality of the plugin. We should set up a spreadsheet to keep track of what's been
+done. */
+
+    function delArrayItem($key, &$ary){
+    	unset ($ary[$key]);
     	$ary = array_values($ary);
     }
     
     // Delete expired messages in escrow
     function deleteExpired() {
-    	// Also should perhaps remove the attachments for the expired messages as well?
     	$query = sprintf("select token, file_name from %s where expires < %d", $this->tables['escrow'], time());
     	$result = Sql_Query ($query);
     	while ($row = Sql_Fetch_Row($result)) {
@@ -277,7 +281,7 @@ class submitByMailPlugin extends phplistPlugin
 		return sql_escape(strip_tags(trim($str)));
 	}
 	
-	// Make sure the button links to the edit page instead of trying to link inside the plugin
+	// Produce button links to pages outside the plugin
 	function outsideLinkButton($name, $desc, $url = '', $extraclass = '',$title = '' ) {
 		$str = PageLinkButton($name, $desc, $url, $extraclass, $title);
 		$str = str_replace("&amp;pi=submitByMailPlugin", '', $str);
@@ -316,11 +320,9 @@ class submitByMailPlugin extends phplistPlugin
     	$out = 0;
     	if (preg_match('/<(.*)>/', $email, $match))
 			$email = $match[1];$query = sprintf("select id from %s where submissionadr='%s'", $this->tables['list'], trim($email));
-    	if ($res = Sql_Query($query)) {
-    		$row = Sql_Fetch_Row($res);
-    		return $row[0];
-    	}
-    	return false;
+    	$res = Sql_Query($query);
+    	$row = Sql_Fetch_Row($res);
+    	return $row[0];
     }
     
     function getCredentials ($email) {
@@ -349,11 +351,12 @@ class submitByMailPlugin extends phplistPlugin
     function getDisposition ($id) {
     	$query = sprintf ("select confirm, queue from %s where id=%d", $this->tables['list'], $id);
     	$row = Sql_Fetch_Array_Query($query);
+    	if (is_null($row)) return null;
     	return $row[0]? "escrow" : ($row[1]? "queue" : "save"); 
     }
     
     function doQueueMsg($lid) {
-    	$query = sprintf ("select queue from %s where id=%d", $this->tables['list'], $id);
+    	$query = sprintf ("select queue from %s where id=%d", $this->tables['list'], $lid);
     	$row = Sql_Fetch_Array_Query($query);
     	return $row[0];
     }
@@ -367,10 +370,10 @@ class submitByMailPlugin extends phplistPlugin
     function getListAdminAdr($listId) {
     	$A = $GLOBALS['tables']['admin'];
     	$B = $GLOBALS['tables']['list'];
-    	$query = sprintf ("select email from %s left join %s on %s.id=%s.owner where %s.id=%d", $A, $B, $A, $B, $B, $listId );    	
+    	$query = sprintf ("select email from %s left join %s on %s.id=%s.owner where %s.id=%d", $A, $B, $A, $B, $B, $listId ); 
     	$row = Sql_Fetch_Row_Query($query);	
 		return $row[0];
-    }
+	}
     
     // Get the email addresses of all the admins
     function getAdminAdrs() {
@@ -385,10 +388,11 @@ class submitByMailPlugin extends phplistPlugin
     	$out = array();
     	$A = $GLOBALS['tables']['list'];
     	$B = $GLOBALS['tables']['admin'];
-    	$query = sprintf ("select $A.id from $A left join $B on $B.id=$A.owner where $B.email='%s'", $A, $A, $B, $B, $A, $B, $email);
+    	$query = sprintf ("select %s.id from %s left join %s on %s.id=%s.owner where %s.email='%s'", $A, $A, $B, $B, $A, $B, $email);
     	$result = Sql_Query($query);
     	while ($row = Sql_Fetch_Row($result))
     		$out[] = $row[0];
+    	return $out;
     }
     
     // Return addresses of all superusers
@@ -554,7 +558,7 @@ class submitByMailPlugin extends phplistPlugin
 		$fname = basename($tfn);
 		$tokn = $this->generateRandomString();
 		$xpir = time() + self::ONE_DAY * $this->holdTime;
-		$query = sprintf ("insert into %s values ('%s', '%s', '%s','%s', %d, %d)", $this->tables['escrow'], $tokn, $fname, 
+		$query = sprintf ("insert into %s values ('%s', '%s', '%s','%s', %d, '%s', %d)", $this->tables['escrow'], $tokn, $fname, 
 			sql_escape($this->sender), sql_escape($this->subj), $this->lid, sql_escape(serialize ($this->alids)), $xpir);
 		Sql_Query($query);
 		return $tokn;
@@ -568,12 +572,14 @@ class submitByMailPlugin extends phplistPlugin
 	// For Phplist we separate the text and html messages, and there is nothing that we 
 	// can do if the text and html of the message are mixed up improperly. 
 	function cleanHtml($html) {
-		if (stripos($html, '<head') !== false) 	// If we have a complete webpage, leave it be
-			return $html;
+		// Get rid of headers
+		$html = preg_replace('/<!DOCTYPE[^>]*.?>\s*/i', "", $html);
+		$html = preg_replace('#<head.*</head>#iU', "", $html); // The regex patterns here don't work.
+		return $html;
 		$html = str_ireplace("</html>", "", $html); 
 		$html = str_ireplace("</body>", "", $html);
 		$fndcnt = -1;
-		preg_replace_callback("/<html[^>]*>/i", 
+		preg_replace_callback("/<html[^>]*>/i", 				// Have my doubts about this regex too
 			function ($matches) use (&$fndcnt) {
 				$fndcnt++;
 				if ($fndcnt)
@@ -850,6 +856,15 @@ class submitByMailPlugin extends phplistPlugin
 			}
 		}		
 	} 
+
+	// Some debugging utilities	
+	function ddump($var) {
+		print ('<pre>' . var_dump($var) . '</p>');
+	}
+	
+	function dprint($txt) {
+		print ("<pre>$txt</pre>");
+	}
 }
 
 /* Set up a toggle for processQueue and collectMsgs so that you can use only  
