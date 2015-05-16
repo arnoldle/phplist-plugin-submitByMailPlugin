@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d6
+ * submitByMail plugin version 1.0d7
  * 
  *
  * @category  phplist
@@ -44,7 +44,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d6';
+    public $version = '1.0d7';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -137,9 +137,10 @@ class submitByMailPlugin extends phplistPlugin
   	
   	private $errMsgs = array(
   							"nodecode" => 'Msg discarded: cannot decode',
+  							"badbox" => 'Msg discarded: bad mailbox',
+  							'nolists' => 'Msg discarded: no lists addressed',
   							"unauth" => "List '%s': Msg discarded; unauthorized sender",
   							'unauthp' => "List '%s': Msg discarded: unauthorized list(s) addressed",
-  							"nosub" => "List '%s': Msg discarded; empty subject line",
   							"badmain" => "List '%s': Msg discarded; bad type for main message",
   							"badtyp" => "List '%s': Msg discarded; mime type not allowed",
   							"noattach" => "List '%s': Msg discarded; attachments not permitted",
@@ -361,9 +362,9 @@ done. */
     	return $row[0];
     }
     
-    function getListFtrTmplt($id) {
+    function getListTmpltFtr($id) {
     	$query = sprintf ("select template, footer from %s where id=%d", $this->tables['list'], $id);
-    	$row = Sql_Fetch_Array_Query($query);
+    	$row = Sql_Fetch_Row_Query($query);
     	return $row;
     }
     
@@ -424,7 +425,9 @@ done. */
     	return false;
     }
     
-    function badMime($apart, $lvl) {
+    // Check the structure of one mime part of a message.
+    // Returns an error code or false if there is no problem.
+    function isBadMime($apart, $lvl) {
     	$mimes = $this->allowedMimes;
     	$mains = $this->allowedMain;
     	$c1 = $this->std($apart->ctype_primary); 
@@ -441,7 +444,7 @@ done. */
     	// If multipart, check the parts	
     	if ($c1 == 'multipart') {
     		foreach ($apart->parts as $mypart) {
-   			if ($result = $this->badMime($mypart, $lvl+1))	// Return if find bad part
+   			if ($result = $this->isBadMime($mypart, $lvl+1))	// Return if find bad part
     				return $result;
     		}
     		return false;    		
@@ -450,20 +453,62 @@ done. */
     		// Do we have a file name? Treat the part as an attachment
     		// But if its an image it could also be inline even with a file name
     		$havefn = $this->getFn($apart);
+    		// Don't check for inline images. If we have a file name we can treat the
+    		// image as an attachment, ignoring the inline disposition directive, which 
+    		// is misused bu user agents anyway.
     		if ($havefn) {
     			if (!ALLOW_ATTACHMENTS) return "noattach";	// Have an attachment when none or allowed.
-    			if (($dp == 'inline') && ($c1 == 'image')) return "badinlin";  // inline images not allowed
+    			return false; 	// If we got here the file type is an acceptable mime type
     		}
-    
+    		
     		// If no file name, but have something other than text or multipart
-    		// Treat it as inline and an error
+    		// Treat it as inline and an error. It is at this point that we catch inline images
+    		// without file names. We could create a file name and treat the image as simply
+    		// an attachment, but it's better to inform the sender of the problem.
     		// Multipart type is excluded by this point; we are only looking for text types
     		if (!$havefn && ((!array_key_exists( $c1, $mains)) || (!in_array($c2, $mains[$c1]))))
     			return "badinlin"; 		// Forbidden inline attachment
     		return false;
-    		
     	}
     }  
+    
+    // Get the lists addressed by the message. Return an array of submission addresses
+    // for the lists we're sending to.
+    function getListsAddressed(&$hdrs) { // A bit more efficient here to call by reference.
+    	// First find the submission addresses for our lists
+		$sbmAdrs = array();	
+		$arr = $this->getTheLists();
+		foreach ($arr as $val) {
+			if (!$val[1]) continue;
+			$sbmAdrs[] = $val[1];		
+		}		
+		// What lists are addressed by the message?
+		$listsSentTo = array();
+		$str = preg_replace("#\r?\n#", '', $hdrs['to'] . ($hdrs['cc']? (',' . $hdrs['cc']): ''));
+		$tos = explode(',', $str);	
+		foreach ($tos as $adr) {
+			$adr = $this->cleanAdr($adr);
+			if (in_array($adr, $sbmAdrs)) $listsSentTo[] = $this->getListID($adr);	 
+		}
+		return $listsSentTo;
+    }
+    
+    function isUnauthorized($from) {
+    	$authSenders[] = $this->getListAdminAdr($this->lid); // Admin for this list
+		// Authorized senders are the list administrator and superusers
+		$isSuperUser = in_array($this->sender, $this->getSuperAdrs());
+		if ($isSuperUser) $isAdmin = 1;			// Can send to all lists
+		else $isAdmin = in_array($this->sender, $this->getAdminAdrs());
+		if (!$isAdmin) return 'unauth';	
+		if (!$isSuperUser) {					// If not a super user, can send only to own lists
+			$owned = $this->getOwnerLids($this->sender);
+			if (!array_intersect ($this->alids, $owned))
+				return 'unauth';
+			if (array_diff($this->alids, $owned))
+				return 'unauthp';
+		}
+		return false;
+	}
     
  	// Check if the message is acceptable; $mbox is the address at which the email arrived.
     // We need this so that in case of a submission to multiple lists we can tell
@@ -482,55 +527,28 @@ done. */
 		$params['decode_headers'] = true;
 		$out = $decoder->decode($params);
 		$hdrs = $out->headers;
+		$this->sender = $this->cleanAdr($from);
+		if (!($hdrs['to'] && $this->sender)) return 'nodecode';
 		
-		/* ---------------------------------*/
-		// Find which addresses are actually lists to which the message is being sent
-		// Some of the addresses in To: and Cc: may not be one of our lists.
-		
-		// First find the submission addresses for our lists
-		$sbmAdrs = array();	
-		$arr = $this->getTheLists();
-		foreach ($arr as $val) {
-			if (!$val[2]) continue;
-			$sbmAdrs[] = $val[2];		
-		}
-		
-		// What lists are addressed by the message?
-		$listsSentTo = array();
-		if (!$hdrs['to']) return 'nodecode';
-		$tos = explode(',', $hdrs['to']) . explode(',', $hdrs['cc']);											
-		foreach ($tos as $adr) {
-			$adr = $this->cleanAdr($adr);
-			if (in_array($adr, $sbmAdrs)) $listsSentTo[] = $adr;	 
-		}
-		
+		// Find the lists the message is addressed to
+		// Decide which list is going to handle the message for the others
+		$this->lid = $this->getListID($mbox);
+		if (!$this->lid) return "badbox";
 		// The first list in the address list is the one which will handle the message
 		// If the current mailbox does not represent that list, quit
-		if ($mbox != $listsSentTo[0]) return 'not_ours';
-		/* ---------------------------------*/
+		$this->alids = $this->getListsAddressed($hdrs);	// List IDs of lists receiving the message
+		if (!$this->alids) {
+			$this->sender = '';	// No lists addressed, so no response needed!
+			return 'nolists';
+		}
+		// Quit if this is not the list that is supposed to handle the message
+		if ($this->lid != $this->alids[0]) return 'not_ours'; 
 		
-		
-		$this->lid = $this->getListID($mbox);
-		$this->subj = trim($hdrs['subject']); 		
-		
-		/* ---------------------------------*/
 		// Check authorizations for the lists addressed	
-		$authSenders[] = $this->getListAdminAdr($this->lid); // Admin for this list
-		// Authorized senders are the list administrator and superusers
-		if (!$hdrs['from']) return "nodecode";
-		$this->sender = $this->cleanAdr($hdrs['from']);
-		$isSuperUser = in_array($this->sender, $this->getSuperAdrs());
-		if ($isSuperUser) $isAdmin = 1;			// Can send to all lists
-		else $isAdmin = in_array($this->sender, $this->getAdminAdrs());
-		if (!$isAdmin) return 'unauth';	
-		if (!$isSuperUser) {					// If not a super user, can send only to own lists
-			$owned = $this->getOwnerLids($this->sender);
-			foreach ($listsSentTo as $itm)
-				if (!in_array($itm, $owned)) return 'unauthp';
-		}	
+		if ($errcode = $this->isUnauthorized($hdrs['from'])
+			return $errcode;
 		
-		$this->alids = $listsSentTo;		// Authorized for all lists addressed
-		/* ---------------------------------*/
+		$this->subj = trim($hdrs['subject']); 		
 		
 		// Check that we have an acceptable MIME structure
 		$mains = $this->allowedMain;
@@ -542,7 +560,7 @@ done. */
     		return false;
     	else { 	// Multipart
     		foreach ($out->parts as $mypart) {
-    			if ($result = $this->badMime($mypart, 1))	// Return if find bad part
+    			if ($result = $this->isBadMime($mypart, 1))	// Return if find bad part
     				return $result;
     		}
     		return false;	// All parts OK 
@@ -566,45 +584,21 @@ done. */
 
 	// Some email user agents separate sections of html messages showing email attachments
 	// inline. Apple Mail is an example of this. The result can be multiple html and body tags in
-	// tags in a message. It may not be necessary, but we remove those to avoid trouble.
+	// tags in a message. There may even be a DOCTYPE tag. We remove all these tags
+	// to produce the kind of HTML that the Phplist editor produces.
+	//
 	// User agents may produce all sorts of mixtures of plain text and html, for example
 	// a long text message with an html part at the end, following an inline attachment.
 	// For Phplist we separate the text and html messages, and there is nothing that we 
-	// can do if the text and html of the message are mixed up improperly. 
+	// can do if the text and html of the message do not have similar content 
 	function cleanHtml($html) {
-		// Get rid of headers
-		$html = preg_replace('/<!DOCTYPE[^>]*.?>\s*/i', "", $html);
-		$html = preg_replace('#<head.*</head>#iU', "", $html); // The regex patterns here don't work.
-		return $html;
+		$html = preg_replace('/^\s*<!doctype[^>]*>\s*$/im', "", $html);
+		$html = preg_replace('#<head[^>]*>.*</head>#imsU', '', $html);
+		$html = preg_replace('#<html.*>|<body.*>#isU', '', $html);
 		$html = str_ireplace("</html>", "", $html); 
 		$html = str_ireplace("</body>", "", $html);
-		$fndcnt = -1;
-		preg_replace_callback("/<html[^>]*>/i", 				// Have my doubts about this regex too
-			function ($matches) use (&$fndcnt) {
-				$fndcnt++;
-				if ($fndcnt)
-					return '';
-			 	else			// Leave first '<html>' tag alone.
-					return $matches[0];
-					
-			},
-			$html);
-		$haveHtmlTag = ($fndcnt > -1);
-		$fndcnt = -1;
-		preg_replace_callback("/<body[^>]*>/i", 
-			function ($matches) use (&$fndcnt) {
-				$fndcnt++;
-				if ($fndcnt)
-					return '';
-			 	else			// Leave first '<body>' tag alone
-					return $matches[0];
-					
-			},
-			$html);
-		$haveBodyTag = ($fndcnt > -1);
-		
-		// Make sure that the '<body>' and '<html>' tags are closed if they are there
-		return $html . ($haveBodyTag? '</body>' : '') . ($haveHtmlTag? '</html>' : '');
+		$html = preg_replace('/^\s*\r?\n/m', '', $html);
+		return $html;
 	}
 	
 	// Save the $messagedata array in the database. This code if taken almost verbatim
@@ -737,7 +731,7 @@ done. */
       	$messagedata = loadMessageData($this->mid);
       	$messagedata['subject'] = $this->subj;
       	$messagedata['fromfield'] = $this->sender;
-      	$tempftr = $this->getListFtrTmplt($this->lid);
+      	$tempftr = $this->getListTmpltFtr($this->lid);
       	$messagedata['template'] = $tempftr[0];
       	$messagedata['footer'] = $tempftr[1];
       	
@@ -798,10 +792,15 @@ done. */
 	// to determine whether the message should be escrowed or processed immediately
 	// $count is an optional array with the proper items to count the outcomes.
 	function receiveMsg($msg, $mbox, &$count=null) {
+		// If we are processing multiple messages, it's important to reinitialize
+		// the parameters for each message.
+		$this->lid = 0;		
+		$this->alids = array();
+		$this->sender = $this->subj = '';
 		if ($result = $this->badMessage($msg, $mbox)) {
 			if ($result == 'not_ours') return;	// Quit if the current message was not sent to the address of the current list
 			logEvent(sprintf($this->errMsgs[$result], listName($this->lid)));
-			if (($result != "unauth") && ($result != "nodecode")) {
+			if ($this->sender) {	// We have to know who gets the response
 				// Edit the log entry for the email to the sender
 				if ($result == 'nosub') $this->subj = '(no subject)';
 				$ofs = strpos($this->errMsgs[$result], 'Msg discarded;') + strlen('Msg discarded;');
@@ -870,6 +869,15 @@ done. */
 /* Set up a toggle for processQueue and collectMsgs so that you can use only  
 one script in cron to do both jobs. You can create and initialize the toggle
 when the plugin is intialized 
+
+What about the user access level. Is that controlled for us or do we have to 
+check it for ourselves?
+
+Ready to test isBadMime. We can generate as complex mime as we want by sending
+ourselves messages with attachments. Edit the to: and from:as needed in the raw 
+message source received.
+
+Now ready to test the more complex methods. Begin with isBadMime() tomorrow. 
 */
 
 ?>
