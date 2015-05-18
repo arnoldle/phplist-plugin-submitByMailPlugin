@@ -126,12 +126,12 @@ $ltitle = '<div class="panel"><div class="header"><h2>ID</h2></div>';
 if (isset($_REQUEST['needle']))
 	$newtitle = '<div class="panel"><div class="header"><h2>Lists Found</h2></div>';
 else
-	$newtitle = '<div class="panel"><div class="header"><h2>Configuration for Submission by Email</h2></div>';
+	$newtitle = '<div class="panel"><div class="header"><h2>Available Mailing Lists</h2></div>';
 $list = str_replace($ltitle, $newtitle, $list);
 
-$mypanel .= $list . '<br />';
+$mypanel .= '&nbsp;<br />'.$list . '<br />';
 $mypanel .= $sform . '<br />';
 Info('Click on the Name or ID of a Mailing Liste to Configure the List for Email Submission or to Edit Its Submission Configuration.');
-$panel = new UIPanel('Available Mailing Lists',$mypanel,'');
+$panel = new UIPanel('<div style="text-align:center;">Configuration for Submission by Email</div>',$mypanel,'');
 print $panel->display();
 print('</form>');

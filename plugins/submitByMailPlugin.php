@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d7
+ * submitByMail plugin version 1.0d8
  * 
  *
  * @category  phplist
@@ -44,7 +44,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d7';
+    public $version = '1.0d8';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -140,7 +140,7 @@ class submitByMailPlugin extends phplistPlugin
   							"badbox" => 'Msg discarded: bad mailbox',
   							'nolists' => 'Msg discarded: no lists addressed',
   							"unauth" => "List '%s': Msg discarded; unauthorized sender",
-  							'unauthp' => "List '%s': Msg discarded: unauthorized list(s) addressed",
+  							'unauthp' => "List '%s': Msg discarded: sent to list(s) sender does not own",
   							"badmain" => "List '%s': Msg discarded; bad type for main message",
   							"badtyp" => "List '%s': Msg discarded; mime type not allowed",
   							"noattach" => "List '%s': Msg discarded; attachments not permitted",
@@ -484,6 +484,7 @@ done. */
 		}		
 		// What lists are addressed by the message?
 		$listsSentTo = array();
+		// Some user agents spread multiple addressees to separate lines:
 		$str = preg_replace("#\r?\n#", '', $hdrs['to'] . ($hdrs['cc']? (',' . $hdrs['cc']): ''));
 		$tos = explode(',', $str);	
 		foreach ($tos as $adr) {
@@ -502,8 +503,10 @@ done. */
 		if (!$isAdmin) return 'unauth';	
 		if (!$isSuperUser) {					// If not a super user, can send only to own lists
 			$owned = $this->getOwnerLids($this->sender);
+			/* We should respond to a list owner, even if the message is not sent
+			to lists owned by that person. The code 'unauth' suppresses a response.
 			if (!array_intersect ($this->alids, $owned))
-				return 'unauth';
+				return 'unauth';						*/
 			if (array_diff($this->alids, $owned))
 				return 'unauthp';
 		}
@@ -518,7 +521,7 @@ done. */
     //
     // As a side effect this function sets $this->lids and $this->sender for use in
     // further processing the message
-    function badMessage ($msg, $mbox) {
+    function isBadMessage ($msg, $mbox) {
     	$isSuperUser = $isAdmin = 0;
     	$mbox = $this->cleanAdr($mbox);	// The user might screw up the argument in a pipe
     	$decoder = new Mail_mimeDecode($msg);
@@ -527,7 +530,8 @@ done. */
 		$params['decode_headers'] = true;
 		$out = $decoder->decode($params);
 		$hdrs = $out->headers;
-		$this->sender = $this->cleanAdr($from);
+
+		$this->sender = $this->cleanAdr($hdrs['from']);
 		if (!($hdrs['to'] && $this->sender)) return 'nodecode';
 		
 		// Find the lists the message is addressed to
@@ -545,8 +549,10 @@ done. */
 		if ($this->lid != $this->alids[0]) return 'not_ours'; 
 		
 		// Check authorizations for the lists addressed	
-		if ($errcode = $this->isUnauthorized($hdrs['from'])
+		if ($errcode = $this->isUnauthorized($hdrs['from'])) {
+			if ($errcode == 'unauth') $this->sender = '';	// Don't respond to unauthorized senders!
 			return $errcode;
+		}
 		
 		$this->subj = trim($hdrs['subject']); 		
 		
@@ -797,7 +803,7 @@ done. */
 		$this->lid = 0;		
 		$this->alids = array();
 		$this->sender = $this->subj = '';
-		if ($result = $this->badMessage($msg, $mbox)) {
+		if ($result = $this->isBadMessage($msg, $mbox)) {
 			if ($result == 'not_ours') return;	// Quit if the current message was not sent to the address of the current list
 			logEvent(sprintf($this->errMsgs[$result], listName($this->lid)));
 			if ($this->sender) {	// We have to know who gets the response
@@ -826,7 +832,7 @@ done. */
 					sendMail($this->sender, 'Message Received and Escrowed', 
 						"<p>A message with the subject '" . $this->subj . "' was received and escrowed.</p>\n" .
 						"<p>To confirm this message, please click the following link:" .
-						'<a href="' . $cfmlink . '">' . "$cfmlink</a>." . "</p>\n<p> You may need to login before reaching this page.</p>"
+						'<a href="' . $cfmlink . '">' . $cfmlink . "</a>.</p>\n<p> You may need to login before reaching this page.</p>"
 						); 
 					logEvent("A message with the subject '" . $this->subj . "' was escrowed.");
 					if (is_array($count)) $count['escrow']++;
