@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d8
+ * submitByMail plugin version 1.0d9
  * 
  *
  * @category  phplist
@@ -44,7 +44,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d8';
+    public $version = '1.0d9';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -75,19 +75,13 @@ class submitByMailPlugin extends phplistPlugin
 	public $tables = array ();	// Table names are prefixed by Phplist
 	public $publicPages = array('test2_page');	// Pages that do not require an admin login
 	public $commandlinePages = array ('pipeInMsg',);
-	public $settings = array(
-    	"escrowHoldTime" => array (
-      		'value' => 1,
-     		'description' => 'Days escrowed messages are held before being discarded',
-      		'type' => "integer",
-      		'allowempty' => 0,
-      		"max" => 7,
-      		"min" => 1,
-      		'category'=> 'campaign',),
-      
-    	// Note that the content type of the message must be multipart or text
-    	// The settings below apply to attachments.
-    	// Note also that we do not allow multipart attachments.
+	
+	// Note that the content type of the message must be multipart or text
+    // The settings below apply to attachments.
+    // Note also that we do not allow multipart attachments.
+    // These settings are not accessible unless attachments are allowed
+    public $mytest = 5;
+	public $mimeSettings = array (
     	"allowedTextSubtypes" => array(
 			'value' => 'plain, html',
     		'description' => 'MIME text/subtypes allowed for attachments',
@@ -108,7 +102,18 @@ class submitByMailPlugin extends phplistPlugin
     		'type' => 'text',
     		'allowempty' => 1,
       		'category' => 'campaign',),
-      		
+    );
+    		
+	public $settings = array(
+    	"escrowHoldTime" => array (
+      		'value' => 1,
+     		'description' => 'Days escrowed messages are held before being discarded',
+      		'type' => "integer",
+      		'allowempty' => 0,
+      		"max" => 7,
+      		"min" => 1,
+      		'category'=> 'campaign',),
+      
 		"manualMsgCollection" => array (
     		'value' => 1,
     		'description' => 'Use browser to collect messages submitted by POP (Yes or No)',
@@ -125,6 +130,7 @@ class submitByMailPlugin extends phplistPlugin
       		"min" => 0,
       		'category'=> 'campaign',),  				
 	);
+	
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
 								"collectMsgs" => "Collect Messages Submitted by Email", 
 											"my_test_page" => "Page for Testing Prospective Plugin Methods");
@@ -136,6 +142,7 @@ class submitByMailPlugin extends phplistPlugin
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
   	
   	private $errMsgs = array(
+  							"nopipe" => 'Msg discarded: pipe not allowed for this list',
   							"nodecode" => 'Msg discarded: cannot decode',
   							"badbox" => 'Msg discarded: bad mailbox',
   							'nolists' => 'Msg discarded: no lists addressed',
@@ -162,8 +169,10 @@ class submitByMailPlugin extends phplistPlugin
 	public $subj;		// Subject line of the current message
 	private $mid;		// Message ID for current message being saved or queued
 	private $holdTime;	// Days to hold escrowed message
-	private $textmsg;	// Text version of current message
-	private $htmlmsg;	// HTML version of current message
+	
+	// Made public just for testing. Will make private again later
+	public $textmsg;	// Text version of current message	
+	public $htmlmsg;	// HTML version of current message
 	
 	const ONE_DAY = 86400; 	// 24 hours in seconds
   	
@@ -191,12 +200,10 @@ class submitByMailPlugin extends phplistPlugin
 		if (!is_dir($this->escrowdir))
 			mkdir ($this->escrowdir);
 			
-		parent::__construct();
-		
-		$this->holdTime = (int) getConfig("escrowHoldTime");
-		
+		if (ALLOW_ATTACHMENTS) 
+			$this->settings = array_merge($this->settings, $this->mimeSettings);
+			
 		// Build array of allowed MIME types and subtypes
-		// For safety, wait until parent is constructed before building these arrays
 		$str = getConfig('allowedTextSubtypes');
     	$str = strtolower(str_replace(' ','', $str));
     	$this->allowedMimes['text'] = explode(',', $str);
@@ -235,6 +242,8 @@ class submitByMailPlugin extends phplistPlugin
     	// Do this here, because we don't want the user to have to set up a cron script
     	// for this.
     	$this->deleteExpired();
+    		
+		parent::__construct();
     }
    	    
    function initialise() {
@@ -243,11 +252,6 @@ class submitByMailPlugin extends phplistPlugin
    			saveConfig('burl', $GLOBALS['scheme'] . "://" . $GLOBALS['website'] . $GLOBALS['pageroot'] . '/admin/');
     	parent::initialise();
     } 
-
-/* Note to self: Must go through and test utility methods individually as much as possible. 
-After this is done, we can then go through and test the central methods providing the 
-functionality of the plugin. We should set up a spreadsheet to keep track of what's been
-done. */
 
     function delArrayItem($key, &$ary){
     	unset ($ary[$key]);
@@ -358,6 +362,12 @@ done. */
     
     function doQueueMsg($lid) {
     	$query = sprintf ("select queue from %s where id=%d", $this->tables['list'], $lid);
+    	$row = Sql_Fetch_Array_Query($query);
+    	return $row[0];
+    }
+    
+    function pipeOK($lid) {
+    	$query = sprintf ("select pipe_submission from %s where id=%d", $this->tables['list'], $lid);
     	$row = Sql_Fetch_Array_Query($query);
     	return $row[0];
     }
@@ -534,6 +544,8 @@ done. */
 		$this->sender = $this->cleanAdr($hdrs['from']);
 		if (!($hdrs['to'] && $this->sender)) return 'nodecode';
 		
+		$this->subj = trim($hdrs['subject']); 
+		
 		// Find the lists the message is addressed to
 		// Decide which list is going to handle the message for the others
 		$this->lid = $this->getListID($mbox);
@@ -554,7 +566,9 @@ done. */
 			return $errcode;
 		}
 		
-		$this->subj = trim($hdrs['subject']); 		
+		// If we have a message piped in, check if the pipe is allowed.
+		if (($GLOBALS['commandline']) && (!$this->pipeOK($this->lid)))
+			return 'nopipe';
 		
 		// Check that we have an acceptable MIME structure
 		$mains = $this->allowedMain;
@@ -653,19 +667,19 @@ done. */
      	return $this->mid; 	// Return private message ID so we can use it in other files
 	}
 	
-	function parseaPart($apart) {
+	function parseAPart($apart) {
 		global $tables;
-		$hdrs = $apart->headers;
 		$c1 = $this->std($apart->ctype_primary); 
     	$c2 = $this->std($apart->ctype_secondary);
+
     	// If multipart, check the parts	
    		if ($c1 == 'multipart') {
     		foreach ($apart->parts as $mypart) {
   				$this->parseaPart ($mypart);
     		}  		
     	} else { // if not multipart, is it OK as attachment or inline?
-			// Do we have a file name? Treat the part as an attachment 
-    		if (($attachname = $this->getFn($apart)) && strlen($apart->body)) {
+			// Do we have a file name? Treat the part as an attachment
+	   		if (($attachname = $this->getFn($apart)) && strlen($apart->body)) {
     			// Handle atttachment
     			list($name,$ext) = explode(".",basename($attachname));
         		# create a temporary file to make sure to use a unique file name to store with
@@ -685,9 +699,9 @@ done. */
       		 	Sql_query(sprintf('insert into %s (messageid,attachmentid) values(%d,%d)',
           			$tables["message_attachment"],$this->mid,$attachmentid));
           	}  else {	// if not multipart and not attachment must be text/plain or text/html
-    				if ($c2 == 'plain')
+    				if ($c2 == 'plain') {
     					$this->textmsg .= $apart->body;
-    				else
+    				} else
     					$this->htmlmsg .= $apart->body; 
     		} 
     	} 
@@ -808,7 +822,6 @@ done. */
 			logEvent(sprintf($this->errMsgs[$result], listName($this->lid)));
 			if ($this->sender) {	// We have to know who gets the response
 				// Edit the log entry for the email to the sender
-				if ($result == 'nosub') $this->subj = '(no subject)';
 				$ofs = strpos($this->errMsgs[$result], 'Msg discarded;') + strlen('Msg discarded;');
 				sendMail($this->sender, "Message Received and Discarded",
 					"A message with the subject '" . $this->subj . "'was received but discarded for the following reason:" . 
@@ -821,10 +834,12 @@ done. */
 				$this->subj = '(no subject)';
 				$err = "Message cannot be sent with missing subject line.\n";
 			}	
+			
 			if (count($this->alids) > 1)
 				$disposn = 'escrow';
-			else	
-				$disposn = 	$this->getDisposition($this->lid);
+			else
+				$disposn = $this->getDisposition($this->lid); 
+			
 			switch ($disposn) {
 				case 'escrow':
 					$tokn = $this->escrowMsg($msg);
@@ -838,7 +853,9 @@ done. */
 					if (is_array($count)) $count['escrow']++;
 					break;
 				case 'queue': 
-					if ($err = $err . $this->queueMsg($msg)) {
+					if (!$err) 
+						$err = $this->queueMsg($msg);
+					if ($err) {
 						sendMail($this->sender, 'Message Received but NOT Queued', 
 							"<p>A message with the subject '" . $this->subj . 
 								"' was received. It was not queued because of the following error(s): $err<p> ");
@@ -874,16 +891,10 @@ done. */
 
 /* Set up a toggle for processQueue and collectMsgs so that you can use only  
 one script in cron to do both jobs. You can create and initialize the toggle
-when the plugin is intialized 
+when the plugin is intialized.
 
 What about the user access level. Is that controlled for us or do we have to 
 check it for ourselves?
-
-Ready to test isBadMime. We can generate as complex mime as we want by sending
-ourselves messages with attachments. Edit the to: and from:as needed in the raw 
-message source received.
-
-Now ready to test the more complex methods. Begin with isBadMime() tomorrow. 
 */
 
 ?>
