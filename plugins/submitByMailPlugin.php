@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d9
+ * submitByMail plugin version 1.0d10
  * 
  *
  * @category  phplist
@@ -44,7 +44,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d9';
+    public $version = '1.0d10';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -74,14 +74,13 @@ class submitByMailPlugin extends phplistPlugin
 	
 	public $tables = array ();	// Table names are prefixed by Phplist
 	public $publicPages = array('test2_page');	// Pages that do not require an admin login
-	public $commandlinePages = array ('pipeInMsg',);
+	public $commandlinePages = array ('pipeInMsg', 'collectMsgs'); 
 	
 	// Note that the content type of the message must be multipart or text
     // The settings below apply to attachments.
     // Note also that we do not allow multipart attachments.
     // These settings are not accessible unless attachments are allowed
-    public $mytest = 5;
-	public $mimeSettings = array (
+    public $mimeSettings = array (
     	"allowedTextSubtypes" => array(
 			'value' => 'plain, html',
     		'description' => 'MIME text/subtypes allowed for attachments',
@@ -567,7 +566,7 @@ class submitByMailPlugin extends phplistPlugin
 		}
 		
 		// If we have a message piped in, check if the pipe is allowed.
-		if (($GLOBALS['commandline']) && (!$this->pipeOK($this->lid)))
+		if (($GLOBALS['commandline']) && ($_GET['page'] == 'pipeInMsg') && (!$this->pipeOK($this->lid)))
 			return 'nopipe';
 		
 		// Check that we have an acceptable MIME structure
@@ -719,14 +718,11 @@ class submitByMailPlugin extends phplistPlugin
 		$this->parseApart($out);	
 	} 
 	
-		// Put default message values into the Phplist database and get an ID for the 
-		// message. Then load the message data array with values for the message
-		function loadMessageData ($msg) {
-		
-		$defaulttemplate = getConfig('defaultmessagetemplate');
-  		$defaultfooter = getConfig('messagefooter');
-  		
-  		// Note that the 'replyto' item appears not to be in use
+	// Put default message values into the Phplist database and get an ID for the 
+	// message. Then load the message data array with values for the message
+	function loadMessageData ($msg) {
+	 	
+	 	// Note that the 'replyto' item appears not to be in use
   		// This item in $messagedata must exist, but it will remain empty
   		// So we do nothing further with it
   		$query
@@ -737,14 +733,10 @@ class submitByMailPlugin extends phplistPlugin
   		. "    ('(no subject)', 'draft', current_timestamp, 'HTML'"
   		. "    , current_timestamp, current_timestamp, ?, ?, '', '', ? )";
   		$query = sprintf($query, $GLOBALS['tables']['message']);
-  		Sql_Query_Params($query, array(listOwner($this->lid), $defaulttemplate,$defaultfooter));
+  		Sql_Query_Params($query, array(0, $defaulttemplate,$defaultfooter));
   		// Set the current message ID
   		$this->mid = Sql_Insert_Id();
-		// Tie the message to the proper list
-      	$query = "replace into %s (messageid,listid,entered) values(?,?,current_timestamp)";
-      	$query = sprintf($query,$GLOBALS['tables']['listmessage']);
-      	Sql_Query_Params($query,array($this->mid,$this->lid));
-      	      	
+			      	
       	// Now create the messageData array with the default values
       	// We are going to load it with the template and footer set for the current list
       	// and the MIME decoded message
@@ -756,8 +748,8 @@ class submitByMailPlugin extends phplistPlugin
       	$messagedata['footer'] = $tempftr[1];
       	
       	// Now decode the MIME. Load attachments into database. Get text and html msg
-      	$this->htmlmsg = $this->textmsg = '';
       	$this->decodeMime($msg);
+      	
       	$messagedata["sendformat"] = 'HTML';      		
       	if ($this->htmlmsg) {
       		$messagedata["message"] = $this->cleanHtml($this->htmlmsg);
@@ -843,7 +835,7 @@ class submitByMailPlugin extends phplistPlugin
 			switch ($disposn) {
 				case 'escrow':
 					$tokn = $this->escrowMsg($msg);
-					$cfmlink = getConfig('burl') . "?pi=submitByMailPlugin&amp;p=confirmMsg.php&amp;mtk=$tokn";
+					$cfmlink = getConfig('burl') . "?pi=submitByMailPlugin&amp;p=confirmMsg&amp;mtk=$tokn";
 					sendMail($this->sender, 'Message Received and Escrowed', 
 						"<p>A message with the subject '" . $this->subj . "' was received and escrowed.</p>\n" .
 						"<p>To confirm this message, please click the following link:" .
