@@ -27,6 +27,20 @@
  * 
  */
 if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
+if (!(int)isSuperUser()) {
+	print ("<p>You do not have sufficient privileges to view this page.</p>");
+	return;
+}
+
+if (isset($_POST['search']) || isset($_POST['update'])) {	
+   /* check the XSRF token */
+   if (!verifyToken()) {
+     print Error(s('Invalid security token, please reload the page and try again'));
+     return;
+   }
+}
+
+$sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 
 /* For paging the listing of the mail lists */
 if (isset($_GET["start"])){
@@ -34,15 +48,6 @@ if (isset($_GET["start"])){
 }
 else $start = 0;
 
-if (isset($_POST['search']) || isset($_POST['update'])) {	
-
-   /* check the XSRF token */
-   if (!verifyToken()) {
-     print Error(s('Invalid security token, please reload the page and try again'));
-     return;
-   }
-}
-$sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 $needle = '';
 $subadr = $_POST['submitadr'];
 $ok = ($_POST['submitOK'] == 'Yes')? 1 : 0;

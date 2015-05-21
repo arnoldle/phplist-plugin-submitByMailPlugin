@@ -28,6 +28,10 @@
  */
  
 if (!defined('PHPLISTINIT')) die(); // avoid pages being loaded directly
+if (!isSuperUser()) {
+	print ("<p>You do not have sufficient privileges to view this page.</p>");
+	return;
+} 
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 

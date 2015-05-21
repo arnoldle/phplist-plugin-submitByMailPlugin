@@ -33,8 +33,14 @@
 // but the form data is actually stored by the page configure_a_list.php
 
 if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
-$editid = $_GET['eid'];
+if (!isSuperUser()){
+	print ("<p>You do not have sufficient privileges to view this page.</p>");
+	return;
+}
+
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
+
+$editid = $_GET['eid'];
 $listArray = $sbm->getTheLists();
 $adrsList = array();
 foreach ($listArray as $val)

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d10
+ * submitByMail plugin version 1.0d11
  * 
  *
  * @category  phplist
@@ -44,7 +44,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d10';
+    public $version = '1.0d11';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -131,11 +131,9 @@ class submitByMailPlugin extends phplistPlugin
 	);
 	
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
-								"collectMsgs" => "Collect Messages Submitted by Email", 
-											"my_test_page" => "Page for Testing Prospective Plugin Methods");
+								"collectMsgs" => "Collect Messages Submitted by Email");
 	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'),
-								  'collectMsgs' => array ('category' => 'Campaigns'),
-									'my_test_page' => array ('category' => 'Campaigns') );	
+								  'collectMsgs' => array ('category' => 'Campaigns') );	
 	
 	// Properties particular to this plugin  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
@@ -166,7 +164,8 @@ class submitByMailPlugin extends phplistPlugin
 	public $alids = array();		// IDs for the lists receiving current message
 	public $sender;		// Sender of the current message
 	public $subj;		// Subject line of the current message
-	private $mid;		// Message ID for current message being saved or queued
+	// Made public just for testing. Will make private again later
+	public $mid;		// Message ID for current message being saved or queued
 	private $holdTime;	// Days to hold escrowed message
 	
 	// Made public just for testing. Will make private again later
@@ -193,6 +192,7 @@ class submitByMailPlugin extends phplistPlugin
     		parent::__construct();
     		return;
     	}
+    	
 	   	$this->coderoot = dirname(__FILE__) . '/submitByMailPlugin/';
 		
 		$this->escrowdir = $this->coderoot . "escrow/";
@@ -229,20 +229,14 @@ class submitByMailPlugin extends phplistPlugin
     		imap_timeout (IMAP_READTIMEOUT, $this->pop_timeout);
     		imap_timeout (IMAP_WRITETIMEOUT, $this->pop_timeout);
     	}
-    	
-    	// Make sure that we don't show the message collection page if we don't allow
-    	// manual collection of messages, remove that page from the menus.
-    	if (!getConfig("manualMsgCollection")) {
-    		$this->delArrayItem("collectMsgs", $this->topMenuLinks);
-    		$this->delArrayItem('collectMsgs', $this->pageTitles);
-    	}
-    	
+
+    	parent::__construct();
+	
     	// Delete escrowed messages that have expired
     	// Do this here, because we don't want the user to have to set up a cron script
-    	// for this.
-    	$this->deleteExpired();
-    		
-		parent::__construct();
+    	// for this. We don't have the name of the relevant database table until after
+    	// the parent is constructed.
+    	$this->deleteExpired();    		
     }
    	    
    function initialise() {
@@ -251,13 +245,14 @@ class submitByMailPlugin extends phplistPlugin
    			saveConfig('burl', $GLOBALS['scheme'] . "://" . $GLOBALS['website'] . $GLOBALS['pageroot'] . '/admin/');
     	parent::initialise();
     } 
-
-    function delArrayItem($key, &$ary){
-    	unset ($ary[$key]);
-    	$ary = array_values($ary);
-    }
     
-    // Delete expired messages in escrow
+    # Startup code, all other objects are constructed 
+    # returns false when we do not have the prereqs, which means we cannot start
+    function activate() {
+        return ((!submitByMailGlobals::$have_decoder) || (!submitByMailGlobals::$have_imap));
+  	}
+    
+	// Delete expired messages in escrow
     function deleteExpired() {
     	$query = sprintf("select token, file_name from %s where expires < %d", $this->tables['escrow'], time());
     	$result = Sql_Query ($query);
@@ -274,6 +269,16 @@ class submitByMailPlugin extends phplistPlugin
   	}
   	
   	function adminmenu() {
+  		// Adjust what adminMenu returns for different circumstances.
+	   	if (!isSuperUser()) { 
+    		// Make sure that only super users get to see the adminMenu.
+    		$this->topMenuLinks = $this->pageTitles = array(); 
+    	} else if (!getConfig("manualMsgCollection")) {
+    			// Make sure that we don't show the message collection page if we don't allow
+    			// manual collection of messages, remove that page from the menus.
+    			unset($this->topMenuLinks["collectMsgs"]);
+    			unset($this->pageTitles["collectMsgs"]);
+    	}
     	return $this->pageTitles;
 	}
 	
@@ -413,6 +418,12 @@ class submitByMailPlugin extends phplistPlugin
     		$out[] = trim($row[0]);
     	return $out;
     }
+    
+    function getSenderID($sender) {
+    	$query = sprintf ("select id from %s where email='%s'", $GLOBALS['tables']['admin'], $sender);
+    	$row = Sql_Fetch_Row_Query($query);
+    	return $row[0];
+	}
    
     function std($str) {
     	return strtolower(trim($str));
@@ -582,7 +593,7 @@ class submitByMailPlugin extends phplistPlugin
     			if ($result = $this->isBadMime($mypart, 1))	// Return if find bad part
     				return $result;
     		}
-    		return false;	// All parts OK 
+    	return false;	// All parts OK 
     	}  	
 	}
 	
@@ -720,6 +731,14 @@ class submitByMailPlugin extends phplistPlugin
 	
 	// Put default message values into the Phplist database and get an ID for the 
 	// message. Then load the message data array with values for the message
+	// that we get directly by decoding the message. Note that we do not complete
+	// fill the messageData array, overwriting relevant defaults, until the message is
+	// saved by the saveMessageData() method.
+	//
+	// This method provides a message ID, that is saved in the plugin property $mid. This
+	// corresponds to set of default entries in the database. We do not overwrite these
+	// default data until the message is actually saved. The purpose of the database
+	// access in this method, is merely to acquire a message ID.
 	function loadMessageData ($msg) {
 	 	
 	 	// Note that the 'replyto' item appears not to be in use
@@ -733,7 +752,7 @@ class submitByMailPlugin extends phplistPlugin
   		. "    ('(no subject)', 'draft', current_timestamp, 'HTML'"
   		. "    , current_timestamp, current_timestamp, ?, ?, '', '', ? )";
   		$query = sprintf($query, $GLOBALS['tables']['message']);
-  		Sql_Query_Params($query, array(0, $defaulttemplate,$defaultfooter));
+  		Sql_Query_Params($query, array($this->getSenderID($this->sender), $defaulttemplate,$defaultfooter));
   		// Set the current message ID
   		$this->mid = Sql_Insert_Id();
 			      	
@@ -885,8 +904,6 @@ class submitByMailPlugin extends phplistPlugin
 one script in cron to do both jobs. You can create and initialize the toggle
 when the plugin is intialized.
 
-What about the user access level. Is that controlled for us or do we have to 
-check it for ourselves?
 */
 
 ?>
