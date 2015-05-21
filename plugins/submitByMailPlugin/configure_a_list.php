@@ -79,7 +79,7 @@ if (isset($_POST['update'])) { // 'Save button clicked
 		}
 		if (!Sql_Query($query)) {
 			$ln = listName($listid);
-			Warn(sprintf("Storage of information failed for list: %s!", $ln));
+			print (Warn(sprintf("Storage of information failed for list: %s!", $ln)));
 		} 
 	}
 } 

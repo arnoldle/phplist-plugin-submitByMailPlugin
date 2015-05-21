@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d11a
+ * submitByMail plugin version 1.0d12
  * 
  *
  * @category  phplist
@@ -44,7 +44,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d11a';
+    public $version = '1.0d12';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -131,9 +131,9 @@ class submitByMailPlugin extends phplistPlugin
 	);
 	
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
-								"collectMsgs" => "Collect Messages Submitted by Email");
+								"collectMsgs" => "Collect Messages Submitted by Email",);
 	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'),
-								  'collectMsgs' => array ('category' => 'Campaigns') );	
+								  'collectMsgs' => array ('category' => 'Campaigns'),);	
 	
 	// Properties particular to this plugin  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
@@ -160,13 +160,13 @@ class submitByMailPlugin extends phplistPlugin
 	// Parameters for the message we are dealing with currently
 	// If only PHP had genuine scope rules, so many private class properties would not 
 	// be necessary!!
-	public $lid;		// ID of the list whose mailbox is handling the message (the first list sent to)
-	public $alids = array();		// IDs for the lists receiving current message
-	public $sender;		// Sender of the current message
-	public $subj;		// Subject line of the current message
+	public $lid = 0;		// ID of the list whose mailbox is handling the message (the first list sent to)
+	public $alids = array();	// IDs for the lists receiving current message
+	public $sender = '';		// Sender of the current message
+	public $subj = '';			// Subject line of the current message
 	// Made public just for testing. Will make private again later
-	public $mid;		// Message ID for current message being saved or queued
-	private $holdTime;	// Days to hold escrowed message
+	public $mid;				// Message ID for current message being saved or queued
+	private $holdTime;			// Days to hold escrowed message
 	
 	// Made public just for testing. Will make private again later
 	public $textmsg;	// Text version of current message	
@@ -282,6 +282,14 @@ class submitByMailPlugin extends phplistPlugin
     	return $this->pageTitles;
 	}
 	
+	function allowMessageToBeQueued($messagedata = array()) {
+    	if (($this->lid) && (!$this->subj)) { // $this->lid is nonzero only if the plugin is processing the message
+			$this->subj = '(no subject)';
+			return "Message cannot be sent with missing subject line.\n";
+		}
+    	return '';
+  	}
+		
 	function generateRandomString($length = 10) {
     	return substr(sha1(mt_rand()), 0, $length);
 	}
@@ -436,7 +444,7 @@ class submitByMailPlugin extends phplistPlugin
 		return trim($adr);
 	}
     
-    // Get filename associated with a part if there is one
+    // Get filename associated with a MIME part if there is one
     function getFn($apart) {
     	if (isset($apart->d_parameters['filename']))
     		return $apart->d_parameters['filename'];
@@ -539,9 +547,9 @@ class submitByMailPlugin extends phplistPlugin
     // not do anything, unless $mbox represents the first list the message is sent to.
     // If there is a problem with the message, returns a short error string.
     //
-    // As a side effect this function sets $this->lids and $this->sender for use in
-    // further processing the message
-    function isBadMessage ($msg, $mbox) {
+    // As a side effect this function sets various class properties for the current message
+    // such as $this->subj and $this->sender
+    function isBadMessage ($msg, $mbox) {  // Maybe check message and attachment sizes here?
     	$isSuperUser = $isAdmin = 0;
     	$mbox = $this->cleanAdr($mbox);	// The user might screw up the argument in a pipe
     	$decoder = new Mail_mimeDecode($msg);
@@ -631,9 +639,11 @@ class submitByMailPlugin extends phplistPlugin
 		return $html;
 	}
 	
+	/*	The following methods are not useable independently. They have been pulled out
+		out of receiveMsg in order to make the logic clearer and to ease testing. */
 	// Save the $messagedata array in the database. This code if taken almost verbatim
 	// from the Phplist file sendcore.php. We save the message data only after setting
-	// the message status.
+	// the message status. Requires the class property $this->mid to be set.
 	function saveMessageData($messagedata) {
 		global $tables;
 		$query = sprintf('update %s  set '
@@ -673,10 +683,17 @@ class submitByMailPlugin extends phplistPlugin
      		, $messagedata["sendformat"]
      		, $messagedata["template"]
      		, $this->mid));
-     	setMessageData($this->mid, 'targetlist', $this->alids);
+     		
+     	// Have to save the target lists in the 'listmessage' table.
+     	foreach ($this->alids as $listid) {
+      		$query = "replace into %s (messageid,listid,entered) values(?,?,current_timestamp)";
+      		$query = sprintf($query,$GLOBALS['tables']['listmessage']);
+      		Sql_Query_Params($query,array($this->mid,$listid));
+    	}
      	return $this->mid; 	// Return private message ID so we can use it in other files
 	}
 	
+	// Figure out what is going on with a MIME part and process it accordingly
 	function parseAPart($apart) {
 		global $tables;
 		$c1 = $this->std($apart->ctype_primary); 
@@ -841,11 +858,6 @@ class submitByMailPlugin extends phplistPlugin
 			if (is_array($count)) $count['error']++;
 		} else { 
 			$err = '';
-			if (!$this->subj) {
-				$this->subj = '(no subject)';
-				$err = "Message cannot be sent with missing subject line.\n";
-			}	
-			
 			if (count($this->alids) > 1)
 				$disposn = 'escrow';
 			else
@@ -854,7 +866,7 @@ class submitByMailPlugin extends phplistPlugin
 			switch ($disposn) {
 				case 'escrow':
 					$tokn = $this->escrowMsg($msg);
-					$cfmlink = getConfig('burl') . "?pi=submitByMailPlugin&amp;p=confirmMsg&amp;mtk=$tokn";
+					$cfmlink = getConfig('burl') . "?page=confirmMsg&amp;pi=submitByMailPlugin&amp;mtk=$tokn";
 					sendMail($this->sender, 'Message Received and Escrowed', 
 						"<p>A message with the subject '" . $this->subj . "' was received and escrowed.</p>\n" .
 						"<p>To confirm this message, please click the following link:" .
@@ -863,10 +875,8 @@ class submitByMailPlugin extends phplistPlugin
 					logEvent("A message with the subject '" . $this->subj . "' was escrowed.");
 					if (is_array($count)) $count['escrow']++;
 					break;
-				case 'queue': 
-					if (!$err) 
-						$err = $this->queueMsg($msg);
-					if ($err) {
+				case 'queue': 						
+					if ($err = $this->queueMsg($msg)) {
 						sendMail($this->sender, 'Message Received but NOT Queued', 
 							"<p>A message with the subject '" . $this->subj . 
 								"' was received. It was not queued because of the following error(s): $err<p> ");
@@ -904,6 +914,8 @@ class submitByMailPlugin extends phplistPlugin
 one script in cron to do both jobs. You can create and initialize the toggle
 when the plugin is intialized.
 
+What about the user access level. Is that controlled for us or do we have to 
+check it for ourselves?
 */
 
 ?>

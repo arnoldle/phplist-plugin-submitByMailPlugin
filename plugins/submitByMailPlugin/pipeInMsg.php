@@ -34,7 +34,7 @@
  	logEvent("Message discarded: no mailbox specified with pipe");
  	die();
  }
- if (!($this->lid = $sbm->getListId($mbox))) {
+ if (!($sbm->getListId($mbox))) {
  	logEvent("Message discarded: no list associated with mailbox with pipe");
  	die();
  }

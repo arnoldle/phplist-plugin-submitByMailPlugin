@@ -30,6 +30,7 @@
 // Ajax file called from edit_list.php to validate email address, verify POP credentials,
 // or submit a message to Phplist
 require_once(dirname(__FILE__) ."/sbmGlobals.php");
+if (!isset($_POST['job'])) die();	// No access except via ajax
 switch ($_POST['job']) {
 	case 'validate': 
 	case 'verify': 
@@ -58,6 +59,9 @@ switch ($_POST['job']) {
 	case 'getmsg': 
 		{
 			$count = array('error' => 0, 'escrow' => 0, 'queue' => 0, 'draft' => 0, 'lost' => 0  );
+/* can not call submitByMailPlugin methods here!!! 							*/
+/* replace by a system call to an SBM command line page. This command will have to be set up
+similarly to a script for cron.															*/
 			$creds = $sbm->getCredentials($_POST['email']);
 			if ($hndl = imap_open($sbm->completeServerName($creds['pop3server']), 
 					$_POST['email'], $creds['password'] )){
