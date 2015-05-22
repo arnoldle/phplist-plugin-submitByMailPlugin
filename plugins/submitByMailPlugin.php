@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d12
+ * submitByMail plugin version 1.0d13
  * 
  *
  * @category  phplist
@@ -44,7 +44,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d12';
+    public $version = '1.0d13';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -74,7 +74,7 @@ class submitByMailPlugin extends phplistPlugin
 	
 	public $tables = array ();	// Table names are prefixed by Phplist
 	public $publicPages = array('test2_page');	// Pages that do not require an admin login
-	public $commandlinePages = array ('pipeInMsg', 'collectMsgs'); 
+	public $commandlinePluginPages = array ('pipeInMsg', 'collectMsgs'); 
 	
 	// Note that the content type of the message must be multipart or text
     // The settings below apply to attachments.
@@ -131,9 +131,9 @@ class submitByMailPlugin extends phplistPlugin
 	);
 	
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
-								"collectMsgs" => "Collect Messages Submitted by Email",);
+								"collectMsgs" => "Collect Messages Submitted by Email");
 	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'),
-								  'collectMsgs' => array ('category' => 'Campaigns'),);	
+								  'collectMsgs' => array ('category' => 'Campaigns') );	
 	
 	// Properties particular to this plugin  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
@@ -198,6 +198,8 @@ class submitByMailPlugin extends phplistPlugin
 		$this->escrowdir = $this->coderoot . "escrow/";
 		if (!is_dir($this->escrowdir))
 			mkdir ($this->escrowdir);
+		
+		$this->holdTime =getConfig("escrowHoldTime");
 			
 		if (ALLOW_ATTACHMENTS) 
 			$this->settings = array_merge($this->settings, $this->mimeSettings);
@@ -283,9 +285,10 @@ class submitByMailPlugin extends phplistPlugin
 	}
 	
 	function allowMessageToBeQueued($messagedata = array()) {
-    	if (($this->lid) && (!$this->subj)) { // $this->lid is nonzero only if the plugin is processing the message
-			$this->subj = '(no subject)';
-			return "Message cannot be sent with missing subject line.\n";
+    	if (($this->lid) && ($this->subj == '(no subject)')) { 
+    			//$this->lid is nonzero only if it is this plugin that is processing the
+    			//message rather than Phplist's send_core.php
+    		return "Message cannot be sent with missing subject line.\n";
 		}
     	return '';
   	}
@@ -563,6 +566,8 @@ class submitByMailPlugin extends phplistPlugin
 		if (!($hdrs['to'] && $this->sender)) return 'nodecode';
 		
 		$this->subj = trim($hdrs['subject']); 
+		if (!$this->subj) $this->subj = '(no subject)'; // Need something here, to show in
+														// messages.
 		
 		// Find the lists the message is addressed to
 		// Decide which list is going to handle the message for the others
@@ -772,7 +777,6 @@ class submitByMailPlugin extends phplistPlugin
   		Sql_Query_Params($query, array($this->getSenderID($this->sender), $defaulttemplate,$defaultfooter));
   		// Set the current message ID
   		$this->mid = Sql_Insert_Id();
-			      	
       	// Now create the messageData array with the default values
       	// We are going to load it with the template and footer set for the current list
       	// and the MIME decoded message
@@ -809,23 +813,18 @@ class submitByMailPlugin extends phplistPlugin
 
 		// Allow plugins manipulate data or save it somewhere else
   		foreach ($GLOBALS['plugins'] as $pluginname => $plugin)
-  			$plugin->sendMessageTabSave($this->id,$msgData);
-		$this->saveMessageData($msgData);
+  			$plugin->sendMessageTabSave($this->mid,$msgData);
+		return $this->saveMessageData($msgData);  	// Return message ID
 	}
 	
 	function queueMsg($msg) {
 		$msgData = $this->loadMessageData ($msg);
-		// Make sure the message has been properly saved, including giving the 
-		// plugins a chance to participate.
-		foreach ($GLOBALS['plugins'] as $pluginname => $plugin)
-  			$plugin->sendMessageTabSave($this->id,$msgData);
 		$this->saveMessageData($msgData);
-		
+
 		// Now can we queue this message. Ask if it's OK with the plugins
 		$queueErr = '';
 		foreach ($GLOBALS['plugins'] as $pluginname => $plugin) {
-  			$pluginerror = '';
-  			$pluginerror = $plugin->allowMessageToBeQueued($messagedata);
+  			$pluginerror = $plugin->allowMessageToBeQueued($msgdata);
   			if ($pluginerror) 
   				$queueErr .= $pluginerror . "\n"; 
   		}
