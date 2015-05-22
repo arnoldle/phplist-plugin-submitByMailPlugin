@@ -28,29 +28,26 @@
  * 
  */
  
-if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
-ob_end_clean();
-$sbm = $GLOBALS['plugins']['submitByMailPlugin'];
-$mbox = $cline['e'];
-if (!$mbox) {
- 	echo "No mailbox specified.\n";
+ if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
+ $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
+ if (!($mbox = $cline['e'])) {
  	logEvent("Message discarded: no mailbox specified with pipe");
  	die();
-}
-if (!($mylid = $sbm->getListId($mbox))) {
- 	echo "No list associated with this pipe.\n";
- 	logEvent("Message discarded: no list associated with mailbox using this pipe");
+ }
+ if (!($sbm->getListId($mbox))) {
+ 	logEvent("Message discarded: no list associated with mailbox with pipe");
  	die();
-}
-if (!$sbm->pipeOK($mylid)) {
- 	echo "Pipe submission not permitted for this list.\n";
- 	logEvent("Message discarded: list $mylid not assigned to pipe submission.");
+ }
+ $query = sprintf ("select pipe_submission from %s where id=%d", $this->tables['list'], $this->lid);
+ $row = Sql_Fetch_Array_Query($query);
+ if (!$row[0]) {
+ 	logEvent("Message discarded: list " . $this->lid . " not assigned to pipe submission.");
  	die();
-}
-$msg = file_get_contents('php://stdin');
-// Process the message
-$sbm->receiveMsg($msg, $mbox);
-echo "Message processed. Check Event Log for result.\n"; */
+  }
+ ob_end_clean();
+ $msg = file_get_contents('php://stdin');
+ // Process the message
+ $sbm->receiveMsg($msg, $mbox);
 ?>
  
  
