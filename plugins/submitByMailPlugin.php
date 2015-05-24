@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d13
+ * submitByMail plugin version 1.0d14
  * 
  *
  * @category  phplist
@@ -44,7 +44,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d13';
+    public $version = '1.0d14';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -73,7 +73,6 @@ class submitByMailPlugin extends phplistPlugin
 		);  				// Structure of database tables for this plugin
 	
 	public $tables = array ();	// Table names are prefixed by Phplist
-	public $publicPages = array('test2_page');	// Pages that do not require an admin login
 	public $commandlinePluginPages = array ('pipeInMsg', 'collectMsgs'); 
 	
 	// Note that the content type of the message must be multipart or text
@@ -248,6 +247,21 @@ class submitByMailPlugin extends phplistPlugin
     	parent::initialise();
     } 
     
+    // Determine is we have a secure https connection.
+    // This code was adapted from the comment by temuraru on the Stack Overflow page
+    // at http://stackoverflow.com/questions/1175096/how-to-find-out-if-youre-using-https-without-serverhttps
+    //
+    // Why do we need this? We cannot tie a list to a POP account without sending a 
+    // password between the browser and server. Without a secure connection, the list
+    // might become open to spammers. The danger is less within mail accounts connected to 
+    // a pipe, but still spammers could learn that the account is connected to a mailing list.
+    function isSecureConnection() {
+    	if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') return true;
+    	// The following line applies for servers behind a load balancer
+		if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https' || !empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] == 'on') return true;
+		return false;
+	}
+	
     # Startup code, all other objects are constructed 
     # returns false when we do not have the prereqs, which means we cannot start
     function activate() {
@@ -913,8 +927,9 @@ class submitByMailPlugin extends phplistPlugin
 one script in cron to do both jobs. You can create and initialize the toggle
 when the plugin is intialized.
 
-What about the user access level. Is that controlled for us or do we have to 
-check it for ourselves?
+This plugin should only be useable with sites using SSL. Should we allow activation 
+on sites that don't? How? Can the activate() method produce a warning message  using Warn()
+when activation fails?
 */
 
 ?>

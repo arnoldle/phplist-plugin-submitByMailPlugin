@@ -39,6 +39,7 @@ $popAccts = $sbm->getPopData();
 
 if ($GLOBALS['commandline']) {
 	$count['lost'] = $count['error'] = $count['escrow'] = $count['queue'] = $count['draft'] = 0;
+	logEvent("Beginning POP collection of submitted messages.");
 	foreach ($popAccts as $anAcct) {
 		// Open the default mailbox, i.e., the inbox
 		if ($hndl = imap_open($sbm->completeServerName($anAcct['pop3server']), 
@@ -62,8 +63,10 @@ if ($GLOBALS['commandline']) {
 	$total = 0;
 	foreach ($count as $key => $val) if ($key != 'lost') $total += $val;
 	print ("$total messages processed\n");
+	logEvent("POP: $total messages processed.");
 	foreach ($count as $key => $val) if ($key != 'lost') print("$key: $val\n");
 	print("Unsuccessful or interrupted connections: " . $count['lost'] . "\n"); 
+	logEvent("POP: Unsuccessful or interrupted connections: " .  $count['lost']);
 } else {
 	$content = <<<EOD
 <table style="width:60%; margin-top:20px; margin-left:auto; margin-right:auto; font-size:16px;"><tr><td>Messages escrowed:</td><td id="escrow" class="cntval">&nbsp;</td></tr>

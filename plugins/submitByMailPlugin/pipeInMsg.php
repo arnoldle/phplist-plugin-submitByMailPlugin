@@ -27,7 +27,6 @@
  * http://resources.phplist.com/plugins/submitByMail .
  * 
  */
- 
 if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
 ob_end_clean();
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
@@ -50,7 +49,7 @@ if (!$sbm->pipeOK($mylid)) {
 $msg = file_get_contents('php://stdin');
 // Process the message
 $sbm->receiveMsg($msg, $mbox);
-echo "Message processed. Check Event Log for result.\n"; */
+echo "Message processed. Check Event Log for result.\n";
 ?>
  
  
