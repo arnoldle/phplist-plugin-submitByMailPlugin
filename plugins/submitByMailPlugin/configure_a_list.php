@@ -64,6 +64,9 @@ if (isset($_POST['update'])) { // 'Save button clicked
 		$pass = $sbm->cleanFormString($_POST['pw']);
 		$ftr = sql_escape($_POST['footer']);
 		$method = $_POST['cmethod'] == 'Pipe'? 1 : 0;
+		if ($method) {
+			$pass = $server = '';
+		}
 		$dispose = $_POST['mdisposal'] == 'Queue'? 1 : 0;
 		$cfm = $_POST['confirm'] == 'Yes'? 1 : 0;
 		if ((isset($_POST['template'])) &&  (is_numeric($_POST['template'])) && ($_POST['template'] > 0))

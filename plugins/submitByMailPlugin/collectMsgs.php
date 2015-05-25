@@ -26,40 +26,29 @@
  * http://resources.phplist.com/plugins/submitByMail .
  * 
  */
- 
+
 if (!defined('PHPLISTINIT')) die(); // avoid pages being loaded directly
-if (!isSuperUser()) {
-	print ("<p>You do not have sufficient privileges to view this page.</p>");
-	return;
-} 
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
+$flag = $sbm->deleteMsgOnReceipt? CL_EXPUNGE: 0;
+$count = array();
 
-$popAccts = $sbm->getPopData();
-
-if ($GLOBALS['commandline']) {
+if ($GLOBALS['commandline']) { 
+	ob_end_clean();
 	$count['lost'] = $count['error'] = $count['escrow'] = $count['queue'] = $count['draft'] = 0;
-	logEvent("Beginning POP collection of submitted messages.");
-	foreach ($popAccts as $anAcct) {
-		// Open the default mailbox, i.e., the inbox
-		if ($hndl = imap_open($sbm->completeServerName($anAcct['pop3server']), 
-			$anAcct['submissionadr'], $anAcct['password'] )){
-			$nm = imap_num_msg($hndl);
-			for ($i = 0; $i < $nm; $i++) {
-				if (($hdr = imap_fetchheader($hndl, $i)) && ($bdy = imap_body ($hndl, $i))) {
-					$msg = $hdr . $bdy;
-					$sbm->receiveMsg($msg, $anAcct['submissionadr'], $count);
-				} else {
-					logEvent("Lost connection to $anAcct[submissionadr]");
-					$count['lost']++;
-					break;
-				}
-			}
-		} else {
-			logEvent("Connection to $anAcct[submissionadr] timed out");
-			$count['lost']++;
+	if (isset($cline['e'])) { // Ajax call
+		$myarray = array('submissionadr' => $cline[e]);
+		$myarray = array_merge($myarray,$sbm->getCredentials($cline[e]));
+		$sbm->downloadFromAcct ($myarray, $count);
+		print(json_encode($count));
+		die();
+	} else { // Command line, but not ajax
+		$popAccts = $sbm->getPopData();
+		$count['lost'] = $count['error'] = $count['escrow'] = $count['queue'] = $count['draft'] = 0;
+		logEvent("Beginning POP collection of submitted messages.");
+		foreach ($popAccts as $anAcct) {
+			$sbm->downloadFromAcct ($anAcct, $count);
 		}
-	}
 	$total = 0;
 	foreach ($count as $key => $val) if ($key != 'lost') $total += $val;
 	print ("$total messages processed\n");
@@ -67,7 +56,15 @@ if ($GLOBALS['commandline']) {
 	foreach ($count as $key => $val) if ($key != 'lost') print("$key: $val\n");
 	print("Unsuccessful or interrupted connections: " . $count['lost'] . "\n"); 
 	logEvent("POP: Unsuccessful or interrupted connections: " .  $count['lost']);
+	die();
+	}
 } else {
+	
+	if (!isSuperUser()) {
+		print ("<p>You do not have sufficient privileges to view this page.</p>");
+		die();
+	}
+
 	$content = <<<EOD
 <table style="width:60%; margin-top:20px; margin-left:auto; margin-right:auto; font-size:16px;"><tr><td>Messages escrowed:</td><td id="escrow" class="cntval">&nbsp;</td></tr>
 <tr><td>Messages saved as draft:</td><td id="draft" class="cntval">&nbsp;</td></tr>
@@ -89,9 +86,9 @@ EOD;
 function getmsgs() {
 	var i = 0;
 	var email;
-	
 ESD;
-	print $btm0;
+	print ($btm0);
+	print ("var url = '" . getConfig('burl') . "index -pcollectMsgs -msubmitByMailPlugin'");
 	$i = count($popAccts);
 	print ('var adrs = [');
 	foreach ($popAccts as $acct) {
@@ -109,7 +106,7 @@ $btm1 = <<<ESD2
 	$("#mybtn").hide();
 	adrs.forEach(function(email) {
 		$('div.panel>div.header>h2').text('Collecting messages from ' + email);
-		$.post( "plugins/submitByMailPlugin/emailajax.php", {job:'getmsg', email:email}, function(data) {
+		$.post( "plugins/submitByMailPlugin/collectMsgs", {job:'getmsg', email:email}, function(data) {
 				mykeys.forEach( function (itm) {
 					cumcmt[itm] += data[itm];
 					totl += cumcnt[itm];
@@ -126,11 +123,6 @@ ESD2;
 	print ($btm1 . $sbm->outsideLinkButton("eventlog&start=0", 'View Event Log')
 		. "').show();\n" . '}' . "\n</script>");
 
-}  
+}
 
-/* We need to do some thing about the asynchronous ajax call above.
-Turning it into a synchronous call is deprecated in upcoming versions of javascript.
-Maybe put a spinner in the header of the panel and use some kind of timing loop to
-wait for completion of the ajax?
-*/
 ?>

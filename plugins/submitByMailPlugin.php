@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d14
+ * submitByMail plugin version 1.0d15
  * 
  *
  * @category  phplist
@@ -28,6 +28,7 @@
  * 
  */
 
+// Ensure that a lack of prerequisites does not crash Phplist
 require_once(dirname(__FILE__)."/submitByMailPlugin/sbmGlobals.php");
 submitByMailGlobals::$have_decoder = stream_resolve_include_path("Mail/mimeDecode.php");
 if (submitByMailGlobals::$have_decoder) require_once 'Mail/mimeDecode.php';
@@ -44,7 +45,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d14';
+    public $version = '1.0d15';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -156,6 +157,9 @@ class submitByMailPlugin extends phplistPlugin
 	private $allowedMimes = array(); // Allowed MIME subtypes keyed on types
 	private $allowedMain = array(); // MIME subtypes allowed as main message, keyed
 									// on types
+	public $deleteMsgsOnReceipt = 0;	// Applies to POP mailboxes. Normally we
+										// set this flag to 1. It is set to 0 only
+										// for testing and debugging the POP routines.
 	// Parameters for the message we are dealing with currently
 	// If only PHP had genuine scope rules, so many private class properties would not 
 	// be necessary!!
@@ -849,6 +853,33 @@ class submitByMailPlugin extends phplistPlugin
 			return $queueErr;
 	}
 	
+	// This method downloads and processes the messages in an account
+	// $anAcct is an associative array containing the credentials for the account
+	// $count is an associative array containing the count of the different 
+	// outcomes from the message processing
+	function downloadFromAcct ($anAcct, &$count) {
+		// Open the default mailbox, i.e., the inbox
+		if ($hndl = imap_open($this->completeServerName($anAcct['pop3server']), 
+			$anAcct['submissionadr'], $anAcct['password'] )){
+			$nm = imap_num_msg($hndl);
+			for ($i = 1; $i <= $nm; $i++) {
+				if (($hdr = imap_fetchheader($hndl, $i)) && ($bdy = imap_body ($hndl, $i))) {
+					$msg = $hdr . $bdy;
+					$this->receiveMsg($msg, $anAcct['submissionadr'], $count);
+					if ($this->deleteMsgOnReceipt) imap_delete($hndl, $i);
+				} else {
+					logEvent("Lost connection to $anAcct[submissionadr]");
+					$count['lost']++;
+					break;
+				}
+			}
+			imap_close($hndl, $flag);
+		} else {
+			logEvent("Connection to $anAcct[submissionadr] timed out");
+			$count['lost']++;
+		}
+	}
+	
 	// This function is called for each message as it is received
 	// to determine whether the message should be escrowed or processed immediately
 	// $count is an optional array with the proper items to count the outcomes.
@@ -912,7 +943,7 @@ class submitByMailPlugin extends phplistPlugin
 			}
 		}		
 	} 
-
+	
 	// Some debugging utilities	
 	function ddump($var) {
 		print ('<pre>' . var_dump($var) . '</p>');

@@ -28,7 +28,6 @@
  */
  
 // Ajax file called from edit_list.php to validate email address, verify POP credentials,
-// or submit a message to Phplist
 require_once(dirname(__FILE__) ."/sbmGlobals.php");
 if (!isset($_POST['job'])) die();	// No access except via ajax
 switch ($_POST['job']) {
@@ -38,12 +37,12 @@ switch ($_POST['job']) {
 			$user=$_POST['user'];	// $user is the email address we're working with
 			if (!filter_var($user, FILTER_VALIDATE_EMAIL)) {
 				print('INVALID');
-				exit;
+				exit();
 			}
 			
 			if ($_POST['job']=='validate') {
 				print ('OK');
-				exit;
+				exit();
 			}
  
   			$authhost= '{' . $_POST['server'] . submitByMailGlobals::SERVER_TAIL . '}';
@@ -54,32 +53,19 @@ switch ($_POST['job']) {
         		print ("OK");
     		} else
         		print ("NO");
-    		exit;
+    		exit();
 		}
-	case 'getmsg': 
+	case 'getmsgs':
 		{
-			$count = array('error' => 0, 'escrow' => 0, 'queue' => 0, 'draft' => 0, 'lost' => 0  );
-/* can not call submitByMailPlugin methods here!!! 							*/
-/* replace by a system call to an SBM command line page. This command will have to be set up
-similarly to a script for cron.															*/
-			$creds = $sbm->getCredentials($_POST['email']);
-			if ($hndl = imap_open($sbm->completeServerName($creds['pop3server']), 
-					$_POST['email'], $creds['password'] )){
-				$nm = imap_num_msg($hndl);
-				for ($i = 0; $i < $nm; $i++) {
-					if (($hdr = imap_fetchheader($hndl, $i)) && ($bdy = imap_body ($hndl, $i))) {
-						$msg = $hdr . $bdy;
-						$sbm->receiveMsg($msg, $anAcct['submissionadr'], $count);
-					} else {
-						logEvent("Lost connection to $anAcct[submissionadr]");
-						$count['lost']++;
-						break;
-					}
-				}
-			} else {
-				logEvent("Connection to $anAcct[submissionadr] timed out");
-				$count['lost']++;
-			}
-			print (json_encode($count));
+			// This file does not load Phplist. So the only way we can actually download
+			// and process messages is to call a page of the SBM plugin with a system command.
+			$cmd = PHP_BINDIR . 'php ';
+			$fn = realpath('./index.php');
+			$opt = ' -c' . realpath('../config/config.php') ." -pcollectMsgs -msubmitByMailPlugin -e"
+					. $_POST['email'];
+			$syscmd = $cmd . $fn . $opt;
+			exec ($syscmd, $output);	// $output is an array containing the result counts for the messages processed.
+			print($output[0]);
+			exit();
 		}
-}
+	}
