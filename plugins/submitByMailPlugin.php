@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d15
+ * submitByMail plugin version 1.0d16
  * 
  *
  * @category  phplist
@@ -45,7 +45,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d15';
+    public $version = '1.0d16';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -131,9 +131,11 @@ class submitByMailPlugin extends phplistPlugin
 	);
 	
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
-								"collectMsgs" => "Collect Messages Submitted by Email");
+								"collectMsgs" => "Collect Messages Submitted by Email", 
+											"my_test_page" => "Page for Testing Prospective Plugin Methods");
 	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'),
-								  'collectMsgs' => array ('category' => 'Campaigns') );	
+								  'collectMsgs' => array ('category' => 'Campaigns'),
+									'my_test_page' => array ('category' => 'Campaigns') );	
 	
 	// Properties particular to this plugin  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
@@ -153,6 +155,7 @@ class submitByMailPlugin extends phplistPlugin
   							);
   							
   	public $numberPerList = 20;		// Number of lists tabulated per page in listing
+  	public $isSecure; 				// Flags a secure connection. Set by constructor.
 	
 	private $allowedMimes = array(); // Allowed MIME subtypes keyed on types
 	private $allowedMain = array(); // MIME subtypes allowed as main message, keyed
@@ -197,6 +200,8 @@ class submitByMailPlugin extends phplistPlugin
     	}
     	
 	   	$this->coderoot = dirname(__FILE__) . '/submitByMailPlugin/';
+	   	
+	   	$this->isSecure = $this->isSecureConnection();
 		
 		$this->escrowdir = $this->coderoot . "escrow/";
 		if (!is_dir($this->escrowdir))
@@ -246,8 +251,7 @@ class submitByMailPlugin extends phplistPlugin
    	    
    function initialise() {
    		// Base url for links to some of our pages
-   		if (!$GLOBALS["commandline"])
-   			saveConfig('burl', $GLOBALS['scheme'] . "://" . $GLOBALS['website'] . $GLOBALS['pageroot'] . '/admin/');
+		saveConfig('burl', $GLOBALS['scheme'] . "://" . $GLOBALS['website'] . $GLOBALS['pageroot'] . '/admin/');
     	parent::initialise();
     } 
     
@@ -259,6 +263,10 @@ class submitByMailPlugin extends phplistPlugin
     // password between the browser and server. Without a secure connection, the list
     // might become open to spammers. The danger is less within mail accounts connected to 
     // a pipe, but still spammers could learn that the account is connected to a mailing list.
+    //
+    // But when the connection is not secure, we will continue to allow use of the 
+    // plugin, but we will be careful not to expose any of the submission emails of the mailing
+    // lists to the browser.
     function isSecureConnection() {
     	if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') return true;
     	// The following line applies for servers behind a load balancer
@@ -267,9 +275,10 @@ class submitByMailPlugin extends phplistPlugin
 	}
 	
     # Startup code, all other objects are constructed 
-    # returns false when we do not have the prereqs, which means we cannot start
+    # Returns false when we do not have the prereqs, which means we cannot start
+    # Also returns false when not running off a secure connection
     function activate() {
-        return ((!submitByMailGlobals::$have_decoder) || (!submitByMailGlobals::$have_imap));
+        return ((!$this->isSecure) || (!submitByMailGlobals::$have_decoder) || (!submitByMailGlobals::$have_imap));
   	}
     
 	// Delete expired messages in escrow
@@ -372,7 +381,7 @@ class submitByMailPlugin extends phplistPlugin
     // Returns array of connection parameters for the lists receiving messages via POP
     function getPopData() {
     	$out = array();
-    	$query = sprintf("select pop3server, submissionadr, password from %s where pipe_submission=0",
+    	$query = sprintf("select id, pop3server, submissionadr, password from %s where pipe_submission=0",
     		$this->tables['list']);
     	$result = Sql_Query($query);
     	while ($row = Sql_Fetch_Assoc($result))
@@ -380,9 +389,10 @@ class submitByMailPlugin extends phplistPlugin
     	return $out;
     }
         
-    function getListParameters ($id) {
-    	$query = sprintf ("select pop3server, pipe_submission, confirm, queue from %s where id=%d", $this->tables['list'], $id);
-    	return Sql_Fetch_Assoc_Query($query);
+    function getSubAdr ($id) {
+    	$query = sprintf ("select submissionadr from %s where id=%d", $this->tables['list'], $id);
+    	$row =  Sql_Fetch_Row_Query($query);
+    	return $row[0];
     }
     
     // What to do with messages for a particular list

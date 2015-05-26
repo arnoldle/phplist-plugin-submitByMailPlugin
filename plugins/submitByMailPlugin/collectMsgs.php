@@ -36,7 +36,7 @@ $count = array();
 if ($GLOBALS['commandline']) { 
 	ob_end_clean();
 	$count['lost'] = $count['error'] = $count['escrow'] = $count['queue'] = $count['draft'] = 0;
-	if (isset($cline['e'])) { // Ajax call
+	if (isset($cline['e'])) { // Response to system call sent by ajax server
 		$myarray = array('submissionadr' => $cline[e]);
 		$myarray = array_merge($myarray,$sbm->getCredentials($cline[e]));
 		$sbm->downloadFromAcct ($myarray, $count);
@@ -84,45 +84,61 @@ EOD;
 	$btm0=<<<ESD
 <script type="text/javascript">
 function getmsgs() {
-	var i = 0;
-	var email;
 ESD;
 	print ($btm0);
-	print ("var url = '" . getConfig('burl') . "index -pcollectMsgs -msubmitByMailPlugin'");
+	$popAccts = $sbm->getPopData();
+	print ("var config = '" . realpath($GLOBALS["configfile"]) . "';\n");
 	$i = count($popAccts);
 	print ('var adrs = [');
 	foreach ($popAccts as $acct) {
-		print('"' . $acct . '"');
+		if ($sbm->isSecure) print('"' . $acct['submissionadr'] . '"');
+		else print('"' . $acct['id'] . '"');
 		$i--;
 		if ($i) print(', ');
 	}
 	print ("];\n");
+/**
+	In jQuery v1.7 synchronous Ajax calls are deprecated, and their disappearance is promised
+	for the later versions. So in going through the array of email addresses/list_ids, we 
+	have no choice but to use recursion
+**/
 $btm1 = <<<ESD2
+	adrs = ['testfwd@suncitydems.org'];
 	var totl = 0;
 	var cumcnt = {error:0, escrow:0, queue:0, draft:0, lost:0};
 	var mykeys = [];
-	for(var k in cumcnt) mykeys.push(k);
+	for(var k in cumcnt) {
+		mykeys.push(k);
+	}
 	$('.cntval').text('0');
 	$("#mybtn").hide();
-	adrs.forEach(function(email) {
-		$('div.panel>div.header>h2').text('Collecting messages from ' + email);
-		$.post( "plugins/submitByMailPlugin/collectMsgs", {job:'getmsg', email:email}, function(data) {
-				mykeys.forEach( function (itm) {
+	/* $.ajaxSetup({
+  		url: "plugins/submitByMailPlugin/emailajax.php",
+  		dataType: "json"
+	}); */
+	var i = 0;
+	function mypost() {
+		$('div.panel>div.header>h2').text('Collecting messages from ' + adrs[i]);
+		$.post("plugins/submitByMailPlugin/emailajax.php",{job:'getmsg', cfg:config, param:adrs[i]}).done(function(data) {
+				alert(data);
+				/*mykeys.forEach( function (itm) {
 					cumcmt[itm] += data[itm];
 					totl += cumcnt[itm];
 					$ ('#' + itm).text(cumcnt[itm]);					
 					});
 				totl -= cumcnt.lost;
 				$("#total>strong").text(totl);
-				if (cumcnt.lost) $('#lost').text(cumcnt.lost).show();
-		});			
-	});
-	$('div.panel>div.header>h2').text('All messages collected');
-	$('#mybtn').html ('
+				if (cumcnt.lost) {
+					$('#lost').text(cumcnt.lost).show();
+				}
+				i+=1;
+				if (i < adrs.length) {
+					//mypost();
+				} else {
+					$('div.panel>div.header>h2').text('All messages collected');
+					$('#mybtn').html ('
 ESD2;
 	print ($btm1 . $sbm->outsideLinkButton("eventlog&start=0", 'View Event Log')
-		. "').show();\n" . '}' . "\n</script>");
-
+		. "').show();\n\t\t\t\t}*/\n\t\t});\n\t}\n}\n</script>");
 }
-
 ?>
