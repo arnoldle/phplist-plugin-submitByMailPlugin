@@ -64,81 +64,81 @@ if ($GLOBALS['commandline']) {
 		print ("<p>You do not have sufficient privileges to view this page.</p>");
 		die();
 	}
+	
+	Info('<strong style="font-size:16px;">Please do not leave this page while collecting messages.<br />Otherwise you may interrupt message collection.</strong>');
 
 	$content = <<<EOD
 <table style="width:60%; margin-top:20px; margin-left:auto; margin-right:auto; font-size:16px;"><tr><td>Messages escrowed:</td><td id="escrow" class="cntval">&nbsp;</td></tr>
 <tr><td>Messages saved as draft:</td><td id="draft" class="cntval">&nbsp;</td></tr>
 <tr><td>Messages queued:</td><td id="queue" class="cntval">&nbsp;</td></tr>
 <tr><td>Unacceptable messages:</td><td id="error" class="cntval">&nbsp;</td></tr>
-<tr><td>&nbsp;</td><td><hr style="border-top: 1px solid #8c8b8b;" /></td>
-<tr><td><strong>Total Messages processed:</strong></td><td id="total" class="cntval"><strong>&nbsp;</strong></td></tr>
+<tr><td>&nbsp;</td><td><hr style="border-top: 2px solid #8c8b8b;" /></td>
+<tr><td><strong>Total Messages processed:</strong></td><td id="ttl" class="cntval" style="font-weight:bold;">&nbsp;</td></tr>
 <tr id="lrow" style="color:red; display:none"><td>Lost Connections:</td><td id="lost">&nbsp;</td></tr>
 </table>
 EOD;
 	$panel = new UIPanel("Collect Email Messages", $content); // Selector .panel .header h2
 	print($panel->display());
-	//<a id="cbtn" class="button" title="Collect Submitted Messages" onclick="getmsgs()">Collect Messages</a>
 	print('<div id="mybtn" style="margin-left:22%; margin-top:15px;">'
 	. '<button title="Collect Submitted Messages" onclick="getmsgs()">Collect Messages</button></div>' . "\n");
-	// We need a hidden button here linking to the page listing campaigns
-	$btm0=<<<ESD
-<script type="text/javascript">
-function getmsgs() {
-ESD;
-	print ($btm0);
-	$popAccts = $sbm->getPopData();
-	print ("var config = '" . realpath($GLOBALS["configfile"]) . "';\n");
-	$i = count($popAccts);
-	print ('var adrs = [');
-	foreach ($popAccts as $acct) {
-		if ($sbm->isSecure) print('"' . $acct['submissionadr'] . '"');
-		else print('"' . $acct['id'] . '"');
-		$i--;
-		if ($i) print(', ');
-	}
-	print ("];\n");
+
 /**
 	In jQuery v1.7 synchronous Ajax calls are deprecated, and their disappearance is promised
 	for the later versions. So in going through the array of email addresses/list_ids, we 
 	have no choice but to use recursion
 **/
-$btm1 = <<<ESD2
-	adrs = ['testfwd@suncitydems.org'];
+	$myscript = <<<ESO
+<script type="text/javascript">
+function getmsgs() {;
+	var adrs = [{{{listadrs}}}];
+	$('.cntval').text('0');
 	var totl = 0;
 	var cumcnt = {error:0, escrow:0, queue:0, draft:0, lost:0};
-	var mykeys = [];
-	for(var k in cumcnt) {
-		mykeys.push(k);
-	}
-	$('.cntval').text('0');
 	$("#mybtn").hide();
-	/* $.ajaxSetup({
-  		url: "plugins/submitByMailPlugin/emailajax.php",
-  		dataType: "json"
-	}); */
 	var i = 0;
 	function mypost() {
-		$('div.panel>div.header>h2').text('Collecting messages from ' + adrs[i]);
-		$.post("plugins/submitByMailPlugin/emailajax.php",{job:'getmsg', cfg:config, param:adrs[i]}).done(function(data) {
-				alert(data);
-				/*mykeys.forEach( function (itm) {
-					cumcmt[itm] += data[itm];
-					totl += cumcnt[itm];
-					$ ('#' + itm).text(cumcnt[itm]);					
-					});
-				totl -= cumcnt.lost;
-				$("#total>strong").text(totl);
-				if (cumcnt.lost) {
-					$('#lost').text(cumcnt.lost).show();
-				}
+		$('div.panel>div.header>h2').html('Collecting messages from ' + adrs[i] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img style="width:25px; height:25px;" src="plugins/submitByMailPlugin/spin.gif">');
+		$.post("plugins/submitByMailPlugin/emailajax.php",{job:'getmsgs', cfg:'{{{configfile}}}', param:adrs[i]}).done(function(data) {
+		        var cnt = JSON.parse(data);
+				$.each (cnt, function (itm, val) {
+					if (itm != 'lost') {
+						totl += val;
+					}
+					cumcnt[itm] += val;
+					$ ('#' + itm).text(cumcnt[itm]);										
+					$('#ttl').text(totl);
+					if (cumcnt.lost) {
+						$('#lost').text(cumcnt.lost);
+						$('#lrow').show();
+					}
+				});
 				i+=1;
 				if (i < adrs.length) {
-					//mypost();
+					mypost();
 				} else {
 					$('div.panel>div.header>h2').text('All messages collected');
-					$('#mybtn').html ('
-ESD2;
-	print ($btm1 . $sbm->outsideLinkButton("eventlog&start=0", 'View Event Log')
-		. "').show();\n\t\t\t\t}*/\n\t\t});\n\t}\n}\n</script>");
+					$('#mybtn').html ('{{{newbutton}}}').show();
+				}
+		});
+	}
+	mypost();
 }
+</script>
+ESO;
+	// Fill in the placeholders in our javascript
+	$myscript = str_replace('{{{configfile}}}', realpath($GLOBALS["configfile"]), $myscript);
+	$myscript = str_replace('{{{newbutton}}}', $sbm->outsideLinkButton("eventlog&start=0", 'View Event Log'), $myscript);
+	$popAccts = $sbm->getPopData();
+	$i = count($popAccts);
+	$acctstr = '';
+	foreach ($popAccts as $acct) {
+		if ($sbm->isSecure) $acctstr .= '"' . $acct['submissionadr'] . '"';
+		else $acctstr .= '"' . $acct['id'] . '"';
+		$i--;
+		if ($i) $acctstr .= ', ';
+	}
+	$myscript = str_replace('{{{listadrs}}}', $acctstr, $myscript);
+	print($myscript);
+}
+
 ?>

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0d16
+ * submitByMail plugin version 1.0c1
  * 
  *
  * @category  phplist
@@ -45,7 +45,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0d16';
+    public $version = '1.0c1';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -160,8 +160,8 @@ class submitByMailPlugin extends phplistPlugin
 	private $allowedMimes = array(); // Allowed MIME subtypes keyed on types
 	private $allowedMain = array(); // MIME subtypes allowed as main message, keyed
 									// on types
-	public $deleteMsgsOnReceipt = 0;	// Applies to POP mailboxes. Normally we
-										// set this flag to 1. It is set to 0 only
+	public $deleteMsgsOnReceipt = CL_EXPUNGE;	// Applies to POP mailboxes. Normally we
+										// set this flag to CL_EXPUNGE. It is set to 0 only
 										// for testing and debugging the POP routines.
 	// Parameters for the message we are dealing with currently
 	// If only PHP had genuine scope rules, so many private class properties would not 
@@ -876,14 +876,14 @@ class submitByMailPlugin extends phplistPlugin
 				if (($hdr = imap_fetchheader($hndl, $i)) && ($bdy = imap_body ($hndl, $i))) {
 					$msg = $hdr . $bdy;
 					$this->receiveMsg($msg, $anAcct['submissionadr'], $count);
-					if ($this->deleteMsgOnReceipt) imap_delete($hndl, $i);
+					if ($this->deleteMsgsOnReceipt) imap_delete($hndl, $i);
 				} else {
 					logEvent("Lost connection to $anAcct[submissionadr]");
 					$count['lost']++;
 					break;
 				}
 			}
-			imap_close($hndl, $flag);
+			imap_close($hndl, $this->deleteMsgsOnReceipt);
 		} else {
 			logEvent("Connection to $anAcct[submissionadr] timed out");
 			$count['lost']++;

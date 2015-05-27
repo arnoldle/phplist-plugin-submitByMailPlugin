@@ -26,10 +26,13 @@
  * http://resources.phplist.com/plugins/submitByMail .
  * 
  */
- 
-// Ajax file called from edit_list.php to validate email address, verify POP credentials,
+ // Ajax file called from edit_list.php to validate email address, verify POP credentials,
+ // and to collect messages submitted via email
 require_once(dirname(__FILE__) ."/sbmGlobals.php");
-if (!isset($_POST['job'])) die();	// No access except via ajax
+
+// No access except via ajax called by one of the plugin pages.
+if (!isset($_POST['job']) || !isset($_SERVER["HTTP_REFERER"]) || !strpos($_SERVER["HTTP_REFERER"], 'pi=submitByMailPlugin')) die();
+
 switch ($_POST['job']) {
 	case 'validate': 
 	case 'verify': 
@@ -57,6 +60,8 @@ switch ($_POST['job']) {
 		}
 	case 'getmsgs':
 		{
+		file_put_contents("/Users/arnoldvl/Desktop/debug.text", $_SERVER["HTTP_REFERER"]);
+
 			// This file does not load Phplist. So the only way we can actually download
 			// and process messages is to call a page of the SBM plugin with a system command.
 			$email = $_POST['param'];
