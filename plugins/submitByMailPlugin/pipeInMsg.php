@@ -1,16 +1,16 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0a1
  * 
- *
  * @category  phplist
  * @package   submitByMail Plugin
  * @author    Arnold V. Lesikar
  * @copyright 2014 Arnold V. Lesikar
  * @license   http://www.gnu.org/licenses/gpl.html GNU General Public License, Version 3
- * 
- * This program is free software: you can redistribute it and/or modify
+ *
+ * This file is a part of the submitByMailPlugin for Phplist
+ *
+ * The submitByMailPlugin is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -27,6 +27,7 @@
  * http://resources.phplist.com/plugins/submitByMail .
  * 
  */
+ 
 if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
 ob_end_clean();
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0c1a
+ * submitByMail plugin version 1.0c1b
  * 
  *
  * @category  phplist
@@ -45,7 +45,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0c1a';
+    public $version = '1.0c1b';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -133,7 +133,7 @@ class submitByMailPlugin extends phplistPlugin
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
 								"collectMsgs" => "Collect Messages Submitted by Email");
 	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'),
-								  'collectMsgs' => array ('category' => 'Campaigns'));	
+								  'collectMsgs' => array ('category' => 'Campaigns') );	
 	
 	// Properties particular to this plugin  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
