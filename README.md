@@ -23,16 +23,26 @@ Messages submitted via a UNIX pipe than through POP will be escrowed or processe
 
 Plugins are given access to submitted messages at the time submitted messages are saved and when such messages are queued.
 
+Please note that certain prerequisites are necessary in order to activate the plugin.
+*1. You must be running on a secure connection (https: instead of http:).
+*2. The imap extension for PHP must be available and turned on.
+*3. The PEAR MIME decoder must be installed.
+
+Again, a secure connection is required to use this plugin. A subsequent version will provide operations suitable for use on an unsecured connection.
+
 A Late Update
 
 May 10, 2015
 
-Code development is now complete at this point, but there has been no significant testing done. The plugin is NOT READY FOR USE, the code is made available here for only for inspection.
+The code is now complete. The code is complete and thoroughly debugged. What is available here can be considered a candidate for release. It has not yet been tested in actual use, but you are welcome to try it. I would appreciate the help with testing!
+
+The docs are not yet written, but you should be able to figure out things. After installation the plugin settings are available at the bottom of the campaign category. You will find the plugin pages in the plugin menu.
+
+f you are running a later version of Phplist (3.07+), you should be able to install the plugin using the plugin installer provided by Phplist. 
+
+Don't try to use this plugin for anything critical! Use at your own risk!
 
 Current target dates
 
-June 15: complete local testing.
+June 30 (or before): the first release, 1.0a1
 
-June 30: release the first alpha version, 1.0a1
-
-After June 30: deal with issues reported by early adopters. 
