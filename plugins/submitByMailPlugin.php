@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0c1
+ * submitByMail plugin version 1.0c1a
  * 
  *
  * @category  phplist
@@ -45,7 +45,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0c1';
+    public $version = '1.0c1a';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -131,11 +131,9 @@ class submitByMailPlugin extends phplistPlugin
 	);
 	
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
-								"collectMsgs" => "Collect Messages Submitted by Email", 
-											"my_test_page" => "Page for Testing Prospective Plugin Methods");
+								"collectMsgs" => "Collect Messages Submitted by Email");
 	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'),
-								  'collectMsgs' => array ('category' => 'Campaigns'),
-									'my_test_page' => array ('category' => 'Campaigns') );	
+								  'collectMsgs' => array ('category' => 'Campaigns'));	
 	
 	// Properties particular to this plugin  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
@@ -170,13 +168,10 @@ class submitByMailPlugin extends phplistPlugin
 	public $alids = array();	// IDs for the lists receiving current message
 	public $sender = '';		// Sender of the current message
 	public $subj = '';			// Subject line of the current message
-	// Made public just for testing. Will make private again later
-	public $mid;				// Message ID for current message being saved or queued
+	private $mid;				// Message ID for current message being saved or queued
 	private $holdTime;			// Days to hold escrowed message
-	
-	// Made public just for testing. Will make private again later
-	public $textmsg;	// Text version of current message	
-	public $htmlmsg;	// HTML version of current message
+	private $textmsg;	// Text version of current message	
+	private $htmlmsg;	// HTML version of current message
 	
 	const ONE_DAY = 86400; 	// 24 hours in seconds
   	
