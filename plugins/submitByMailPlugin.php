@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0c1b
+ * submitByMail plugin version 1.0b1
  * 
  *
  * @category  phplist
@@ -45,7 +45,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0c1b';
+    public $version = '1.0b1';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
