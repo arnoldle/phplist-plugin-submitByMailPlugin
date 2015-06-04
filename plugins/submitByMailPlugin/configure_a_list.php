@@ -139,7 +139,7 @@ $list = str_replace($ltitle, $newtitle, $list);
 
 $mypanel .= '&nbsp;<br />'.$list . '<br />';
 $mypanel .= $sform . '<br />';
-Info('Click on the Name or ID of a Mailing Liste to Configure the List for Email Submission or to Edit Its Submission Configuration.');
+Info('Click on the Name or ID of a Mailing Liste to Configure the List for Email Submission or to Edit Its Submission Configuration.', 1);
 $panel = new UIPanel('<div style="text-align:center;">Configuration for Submission by Email</div>',$mypanel,'');
 print $panel->display();
 print('</form>');

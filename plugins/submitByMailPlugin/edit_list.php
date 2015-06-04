@@ -118,7 +118,7 @@ $ln = listName($editid);
 $infostr = <<<IOP
 <h3><strong>This configuration applies for messages sent to a single individual list.</strong></h3><p style="font-size:14px; margin-top:15px;">Messages sent to multiple lists at the same time are not affected by the settings here. Such messages are always held for confirmation and then always saved as drafts after confirmation.</p>
 IOP;
-Info($infostr);
+Info($infostr, 1);
 // Now lay out the form
 print ($sbm->myFormStart(PageURL2('configure_a_list'), 'name="sbmConfigEdit" class="submitByMailPlugin" id="sbmConfigEdit"'));
 

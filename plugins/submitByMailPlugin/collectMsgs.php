@@ -30,7 +30,6 @@
 if (!defined('PHPLISTINIT')) die(); // avoid pages being loaded directly
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
-$flag = $sbm->deleteMsgOnReceipt? CL_EXPUNGE: 0;
 $count = array();
 
 if ($GLOBALS['commandline']) { 
@@ -65,7 +64,7 @@ if ($GLOBALS['commandline']) {
 		die();
 	}
 	
-	Info('<strong style="font-size:16px;">Please do not leave this page while collecting messages.<br />Otherwise you may interrupt message collection.</strong>');
+	Info('<strong style="font-size:16px;">Please do not leave this page while collecting messages.<br />Otherwise you may interrupt message collection.</strong>', 1);
 
 	$content = <<<EOD
 <table style="width:60%; margin-top:20px; margin-left:auto; margin-right:auto; font-size:16px;"><tr><td>Messages escrowed:</td><td id="escrow" class="cntval">&nbsp;</td></tr>
@@ -98,7 +97,7 @@ function getmsgs() {;
 	var i = 0;
 	function mypost() {
 		$('div.panel>div.header>h2').html('Collecting messages from ' + adrs[i] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img style="width:25px; height:25px;" src="plugins/submitByMailPlugin/spin.gif">');
-		$.post("plugins/submitByMailPlugin/emailajax.php",{job:'getmsgs', cfg:'{{{configfile}}}', param:adrs[i]}).done(function(data) {
+		$.post("plugins/submitByMailPlugin/emailajax.php",{job:'getmsgs', cmd:'{{{phpcommand}}}', param:adrs[i]}).done(function(data) {
 		        var cnt = JSON.parse(data);
 				$.each (cnt, function (itm, val) {
 					if (itm != 'lost') {
@@ -126,7 +125,7 @@ function getmsgs() {;
 </script>
 ESO;
 	// Fill in the placeholders in our javascript
-	$myscript = str_replace('{{{configfile}}}', realpath($GLOBALS["configfile"]), $myscript);
+	$myscript = str_replace('{{{phpcommand}}}', $sbm->makeCliCommand('collectMsgs'), $myscript);
 	$myscript = str_replace('{{{newbutton}}}', $sbm->outsideLinkButton("eventlog&start=0", 'View Event Log'), $myscript);
 	$popAccts = $sbm->getPopData();
 	$i = count($popAccts);
