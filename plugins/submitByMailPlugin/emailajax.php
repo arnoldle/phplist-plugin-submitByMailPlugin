@@ -60,10 +60,18 @@ switch ($_POST['job']) {
 		}
 	case 'getmsgs':
 		{
+		file_put_contents("/Users/arnoldvl/Desktop/debug.text", $_SERVER["HTTP_REFERER"]);
+
 			// This file does not load Phplist. So the only way we can actually download
 			// and process messages is to call a page of the SBM plugin with a system command.
 			$email = $_POST['param'];
-			$syscmd = $_POST['cmd'] . " -e$email";
+			$config = $_POST['cfg'];
+			$cmd = PHP_BINDIR . '/php ';
+			$dir = dirname(dirname(getcwd()));
+			$fn = $dir . '/index.php';
+			$opt = ' -c' . $config ." -pcollectMsgs -msubmitByMailPlugin -e"
+					. $email;
+			$syscmd = $cmd . $fn . $opt;
 			exec ($syscmd, $output);	// $output is an array containing the result counts for the messages processed.
 			print($output[0]);
 			exit();

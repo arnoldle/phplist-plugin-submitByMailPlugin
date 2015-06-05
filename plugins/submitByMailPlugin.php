@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2
+ * submitByMail plugin version 1.0b1.1
  * 
  *
  * @category  phplist
@@ -45,8 +45,8 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2';
-    public $enabled = true;
+    public $version = '1.0b1.1';
+    public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
     public $coderoot; 	// coderoot relative to the phplist admin directory
@@ -104,12 +104,6 @@ class submitByMailPlugin extends phplistPlugin
     );
     		
 	public $settings = array(
-		"phpCommand" => array(
-			'value' => 'php',
-    		'description' => 'Command to be used for PHP command line (may include directories)',
-    		'type' => 'text',
-    		'allowempty' => 0,
-      		'category' => 'campaign',),
     	"escrowHoldTime" => array (
       		'value' => 1,
      		'description' => 'Days escrowed messages are held before being discarded',
@@ -134,29 +128,12 @@ class submitByMailPlugin extends phplistPlugin
       		"max" => 120,
       		"min" => 0,
       		'category'=> 'campaign',),  				
-	      		
-      	"phpCommand" => array(
-			'value' => 'php',
-    		'description' => 'Command to be used for PHP command line (may include directories)',
-    		'type' => 'text',
-    		'allowempty' => 0,
-      		'category' => 'campaign',),		
-      				
-		"phpiniFile" => array(
-			'value' => '',
-    		'description' => 'Path to the php.ini file to be used with the command line, including the file name',
-    		'type' => 'text',
-    		'allowempty' => 1,
-      		'category' => 'campaign',),	
-      	);
+	);
 	
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
-								"collectMsgs" => "Collect Messages Submitted by Email",
-								"generateScripts"=> "Generate Scripts for Mailbox Pipes and Cron");
+								"collectMsgs" => "Collect Messages Submitted by Email");
 	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'),
-								  'collectMsgs' => array ('category' => 'Campaigns'), 
-								  'generateScripts' => array('category' => 'Campaigns')
-								  );	
+								  'collectMsgs' => array ('category' => 'Campaigns') );	
 	
 	// Properties particular to this plugin  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
@@ -176,12 +153,12 @@ class submitByMailPlugin extends phplistPlugin
   							);
   							
   	public $numberPerList = 20;		// Number of lists tabulated per page in listing
-  	private $isSecure; 				// Flags a secure connection. Set by constructor.
+  	public $isSecure; 				// Flags a secure connection. Set by constructor.
 	
 	private $allowedMimes = array(); // Allowed MIME subtypes keyed on types
 	private $allowedMain = array(); // MIME subtypes allowed as main message, keyed
 									// on types
-	private $deleteMsgsOnReceipt = CL_EXPUNGE;	// Applies to POP mailboxes. Normally we
+	public $deleteMsgsOnReceipt = CL_EXPUNGE;	// Applies to POP mailboxes. Normally we
 										// set this flag to CL_EXPUNGE. It is set to 0 only
 										// for testing and debugging the POP routines.
 	// Parameters for the message we are dealing with currently
@@ -227,14 +204,12 @@ class submitByMailPlugin extends phplistPlugin
 			
 		// Make sure our settings are in the database
 		foreach ($this->settings as $item => $thesetting) {
-			if (($item == 'phpCommand') && (defined(PHP_BINDIR)))
-				$thesetting['value'] = PHP_BINDIR . '/php';
 			if (!getConfig($item)) saveConfig($item, $thesetting['value']);
 		}
 		foreach ($this->mimeSettings as $item => $thesetting) {
 			if (!getConfig($item)) saveConfig($item, $thesetting['value']);
 		}
-				
+		
 		$this->holdTime =getConfig("escrowHoldTime");
 			
 		if (ALLOW_ATTACHMENTS) 
@@ -350,17 +325,6 @@ class submitByMailPlugin extends phplistPlugin
 		
 	function generateRandomString($length = 10) {
     	return substr(sha1(mt_rand()), 0, $length);
-	}
-	
-	// Generate a command line PHP command to be used by emailajax.php
-	function makeCliCommand($page) {
-		$cmd = getConfig('phpCommand');
-		$cfg = getConfig('phpiniFile');
-		if (trim($cfg) && preg_match('#/php\.ini$#', $cfg))
-			$cmd = "$cmd -c$cfg";
-		$cmd = $cmd . ' ' . dirname(dirname($this->coderoot)) . '/index.php ';
-		$cmd .= '-c' . realpath($GLOBALS["configfile"]) . " -p$page -msubmitByMailPlugin";
-		return $cmd;
 	}
 	
   	function cleanFormString($str) {
