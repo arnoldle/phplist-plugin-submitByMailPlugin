@@ -31,5 +31,4 @@
 // that otherwise would have to be global through Phplist
 class submitByMailGlobals {
 	const SERVER_TAIL = ':995/pop3/ssl/novalidate-cert';
-	public static $have_decoder, $have_imap;
 }

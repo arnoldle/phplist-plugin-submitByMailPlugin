@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b1.1
+ * submitByMail plugin version 1.0b2
  * 
  *
  * @category  phplist
@@ -30,10 +30,7 @@
 
 // Ensure that a lack of prerequisites does not crash Phplist
 require_once(dirname(__FILE__)."/submitByMailPlugin/sbmGlobals.php");
-submitByMailGlobals::$have_decoder = stream_resolve_include_path("Mail/mimeDecode.php");
-if (submitByMailGlobals::$have_decoder) require_once 'Mail/mimeDecode.php';
-submitByMailGlobals::$have_imap = function_exists('imap_open');
-
+require_once 'Mail/mimeDecode.php';
 /**
  * Registers the plugin with phplist
  * 
@@ -45,7 +42,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b1.1';
+    public $version = '1.0b2';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -130,10 +127,15 @@ class submitByMailPlugin extends phplistPlugin
       		'category'=> 'campaign',),  				
 	);
 	
+	// Arrays for the menu system
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
-								"collectMsgs" => "Collect Messages Submitted by Email");
+								"collectMsgs" => "Collect Messages Submitted by Email",
+								"generateScripts"=> "Generate Scripts for Mailbox Pipes and Cron"
+								);
 	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'),
-								  'collectMsgs' => array ('category' => 'Campaigns') );	
+								  'collectMsgs' => array ('category' => 'Campaigns'), 
+								  'generateScripts' => array('category' => 'Campaigns')
+								  );	
 	
 	// Properties particular to this plugin  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
@@ -177,23 +179,6 @@ class submitByMailPlugin extends phplistPlugin
   	
   	function __construct()
     {
-    	// Ensure that we don't crash Phplist and that we can't activate the plugin if 
-    	// we don't have the PEAR mime decoder and the imap extension
-    	if ((!submitByMailGlobals::$have_decoder) || (!submitByMailGlobals::$have_imap)) {
-    	
-    		// Don't have prerequisites; make sure plug-in remains unitialized and disabled
-    		$query = sprintf("delete from %s where item = '%s'", $GLOBALS['tables']['config'], md5('plugin-submitByMailPlugin-initialised'));
-    		sql_query($query);
-    		$this->commandlinePages = $this->pageTitles = $this->topMenuLinks = $this->settings
-    			= $this->dbStruct = array();	// Avoid showing this plugin exists!
-    			
-    		// Since Phplist constructs the plugin class even for disabled plugins, make
-    		// sure that we call the parent constructor as we must always do when constructing
-    		// the class
-    		parent::__construct();
-    		return;
-    	}
-    	
 	   	$this->coderoot = dirname(__FILE__) . '/submitByMailPlugin/';
 	   	
 	   	$this->isSecure = $this->isSecureConnection();
@@ -271,6 +256,8 @@ class submitByMailPlugin extends phplistPlugin
     // plugin, but we will be careful not to expose any of the submission emails of the mailing
     // lists to the browser.
     function isSecureConnection() {
+    	if ($GLOBALS['commandline']) return true; 	// Command line is internal and secure (pipe 
+    												// and cron and assuming SSH if on terminal)
     	if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') return true;
     	// The following line applies for servers behind a load balancer
 		if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https' || !empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] == 'on') return true;
@@ -281,9 +268,9 @@ class submitByMailPlugin extends phplistPlugin
     # Returns false when we do not have the prereqs, which means we cannot start
     # Also returns false when not running off a secure connection
     function activate() {
-        return ((!$this->isSecure) || (!submitByMailGlobals::$have_decoder) || (!submitByMailGlobals::$have_imap));
+        return ($this->isSecure);
   	}
-    
+
 	// Delete expired messages in escrow
     function deleteExpired() {
     	$query = sprintf("select token, file_name from %s where expires < %d", $this->tables['escrow'], time());
@@ -299,6 +286,22 @@ class submitByMailPlugin extends phplistPlugin
   	function completeServerName($server) {
   		return '{' . $server . submitByMailGlobals::SERVER_TAIL . '}';
   	}
+  	
+  	function getCliPhp() {
+  		exec('which php-cli', $output);
+  		if ($output)
+  			return trim($output[0]);
+  		exec('which php', $output);
+  		return trim($output[0]);
+  	}
+  	
+  	// Generate a command line PHP command to be used by emailajax.php
+	function makeCliCommand($page) {
+		$cmd = $this->getCliPhp();
+		$cmd = $cmd . ' -q ' . dirname(dirname($this->coderoot)) . '/index.php ';
+		$cmd .= '-c' . realpath($GLOBALS["configfile"]) . " -p$page -msubmitByMailPlugin";
+		return $cmd;
+	}
   	
   	function adminmenu() {
   		// Adjust what adminMenu returns for different circumstances.
@@ -970,10 +973,5 @@ class submitByMailPlugin extends phplistPlugin
 /* Set up a toggle for processQueue and collectMsgs so that you can use only  
 one script in cron to do both jobs. You can create and initialize the toggle
 when the plugin is intialized.
-
-This plugin should only be useable with sites using SSL. Should we allow activation 
-on sites that don't? How? Can the activate() method produce a warning message  using Warn()
-when activation fails?
 */
-
 ?>
