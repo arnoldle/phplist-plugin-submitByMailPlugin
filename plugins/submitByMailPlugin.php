@@ -130,8 +130,7 @@ class submitByMailPlugin extends phplistPlugin
 	// Arrays for the menu system
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
 								"collectMsgs" => "Collect Messages Submitted by Email",
-								"generateScripts"=> "Generate Scripts for Mailbox Pipes and Cron"
-								);
+								"generateScripts"=> "Generate Scripts for Mailbox Pipes and Cron");
 	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'),
 								  'collectMsgs' => array ('category' => 'Campaigns'), 
 								  'generateScripts' => array('category' => 'Campaigns')

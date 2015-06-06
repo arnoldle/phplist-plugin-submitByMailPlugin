@@ -49,12 +49,12 @@ if ($_POST['scriptType']) {
 	}
 	if (substr($dir, -1) != '/') $dir .= '/';
 	file_put_contents($dir . $scptname, $script);
+	chmod ($dir . $scptname, 0755);
 }
 $str = <<<EOI
 <div style="font-size:14px">
 <p>This page generates shell scripts that you can use to pipe messages into phpList and to collect messages
-from mailboxes with POP.<p><p>The script to pipe in messages is called "pipeMsg.sh." Store the script
-in a convenient location and make it executable with the command <em>chmod 755.</em></p><p>Let's call the directory path to the directory where you store the script <em>/Path_to_the_script</em>. The you can pipe from a mailbox, say, <em>mybox@nowhere.com</em>, 
+from mailboxes with POP.<p><p>The script to pipe in messages is called "pipeMsg.sh." Let's call the directory path to the directory where you store the script <em>/Path_to_the_script</em>. The you can pipe from a mailbox, say, <em>mybox@nowhere.com</em>, 
 using the following command:
 <p style="text-align:center"><em style="font-size:16px;">/Path_to_the_script/pipeMsg.sh mybox@nowhere.com</em></p><p>The script to collect messages is called "collectMsgs.sh.
 As before, if the directory path to the script is <em>/Path_to_the_script</em>, you can use the following as 
@@ -64,17 +64,77 @@ is located in the usual Unix/Linux location <em>/bin/sh</em>.
 <p>You should always include the full path to your script in these commands, because you cannot be sure of the environment of the process running these scripts.</div>
 EOI;
 print($str);
-$content = formStart();
+print('<div id="mydialog" title="Data Not Saved" style="text-align:center;"></div>'); // Space for modal dialogs using jQueryUI
+
+$content = formStart('id="scptGenForm"');
 $content .= <<<EOD
 <h5>Select script to create:</h5>
 <p><input type="radio" checked name="scriptType" value="pipe" /><strong>&nbsp;Script to pipe in a message to a list</strong></p>
 <p><input type="radio" name="scriptType" value="collect" /><strong>&nbsp;Script to collect messages</input></p>
 <p><input type="radio" name="scriptType" value="pqueue" /><strong>&nbsp;Script to process the queue</input></p>
 <p>Directory in which to store the script:<br />
-<input type=text name="directory" size=200 value ="$dir" /></form>
-<p><input type="submit" value="Create Script" /></p>
+<input type=text name="directory" size=200 value ="$dir" />
+<p><input class="submit" type="submit" name="submitBtn" value="Create Script" /></p>
 </form>
 EOD;
 
 $panel = new UIPanel("Generate Scripts", $content); // Selector .panel .header h2
 print($panel->display());
+$myscript = <<<ESO
+<script type="text/javascript">
+$(document).ready(function () {
+    $("#mydialog").dialog({
+    		modal: true,
+    		autoOpen: false,
+    		width: 500
+    	}); 
+	$(".ui-dialog-titlebar-close").css("display","none");
+	$(".ui-dialog-content").css("margin", "10px");
+	$(".ui-dialog").css("border","3px solid DarkGray");
+	$(".ui-dialog-content").css("font-size", "18px");
+	});
+
+
+function myalert(msg) {
+	$("#mydialog").html(msg);
+	$("#mydialog").dialog("option",{buttons:{"OK": function() {
+        				$(this).dialog("close");}}});
+    $("#mydialog").dialog("open");
+}
+
+function mysubmit() {
+	var myform = document.getElementById("scptGenForm");
+    myform.submit();
+} 
+
+$("#scptGenForm").submit(function(event) {
+	var dir = $(":input[name='directory']").val();
+	dir = dir.replace(/\s/g, '');
+	if (!dir || 0 === dir.length) {
+		myalert("You must enter a name for the directory where the script will be stored.");
+		return false;
+	}
+	event.preventDefault();
+	$.post("plugins/submitByMailPlugin/sbmajax.php", {job:'ckdir', directory:dir}, function (data) {
+		switch(data) {
+				case 'OK':
+					mysubmit();
+				case 'nodir':
+					{
+					myalert('This directory does not exist. Please choose a different directory');
+					break;
+					}
+				case 'nowrite':
+					{
+					myalert ('Cannot write in this directory. Please choose a different directory');
+					break;
+					} 
+		}
+	}, 'text');	
+});
+</script>
+<style>
+.ui-dialog{top:30% !important}
+</style>
+ESO;
+print ($myscript);

@@ -140,7 +140,7 @@ style="width:125px !important; display:inline !important;" value="$pass" maxleng
 value="Save" $save /><label style="display:inline !important;">Save</label>&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="Queue" $queue /><label style="display:inline !important;">Queue</label>
 <br /><br /><label style="display:inline !important;">Confirm submission:</label>&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" $cfmyes /><label style="display:inline !important;">Yes</label>&nbsp;&nbsp;&nbsp;&nbsp;
 <input type="radio" name="confirm" value="No" $cfmno /><label style="display:inline !important;">No</label>$template_form $footer_form
-<input class="submit" type="submit" name="submitter" value="Save");" />
+<input class="submit" type="submit" name="submitter" value="Save" />
 EOD;
 
 $mypanel .= PageLinkClass('configure_a_list','Cancel','','button cancel','Do not save, and go back to the lists');
@@ -231,7 +231,7 @@ function myconfirm(msg) {
     $("#mydialog").dialog("open");	
 }
 
-$("form[name=sbmConfigEdit]").submit(function( event ) {
+$("#sbmConfigEdit").submit(function( event ) {
 	var srvr = $("input[name=pop3server]").val();
 	var sadr = $("input[name=submitadr]").val();
 	var pwd = $("input[name=pw]").val();
@@ -265,7 +265,7 @@ $("form[name=sbmConfigEdit]").submit(function( event ) {
 		mynotice('Verifying POP credentials<img style="width:40px; height:40px; display:block; margin-left:auto; margin-right:auto; margin-top: 10px;" src="plugins/submitByMailPlugin/spin.gif">');
 	}
 	
-	$.post( "plugins/submitByMailPlugin/emailajax.php", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
+	$.post( "plugins/submitByMailPlugin/sbmajax.php", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
 			if (data == 'OK') {
 				if (($("input[name=mdisposal]:checked").val() == "Queue") && ($("input[name=confirm]:checked").val() == "No")) 
 					myconfirm("Are you <strong>absolutely sure</strong> that you want to queue messages mailed in, without confirming with the list administrator?");

@@ -97,7 +97,7 @@ function getmsgs() {;
 	var i = 0;
 	function mypost() {
 		$('div.panel>div.header>h2').html('Collecting messages from ' + adrs[i] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img style="width:25px; height:25px;" src="plugins/submitByMailPlugin/spin.gif">');
-		$.post("plugins/submitByMailPlugin/emailajax.php",{job:'getmsgs', cmd:'{{{phpcommand}}}', param:adrs[i]}).done(function(data) {
+		$.post("plugins/submitByMailPlugin/sbmajax.php",{job:'getmsgs', cmd:'{{{phpcommand}}}', param:adrs[i]}).done(function(data) {
 		        var cnt = JSON.parse(data);
 				$.each (cnt, function (itm, val) {
 					if (itm != 'lost') {
