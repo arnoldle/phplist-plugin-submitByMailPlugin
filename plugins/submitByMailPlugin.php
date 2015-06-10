@@ -100,6 +100,13 @@ class submitByMailPlugin extends phplistPlugin
     );
     		
 	public $settings = array(
+    	"cliPath" => array (
+      		'value' => '',
+     		'description' => "Complete path to command line PHP binary (leave empty if you don't know it)",
+      		'type' => "text",
+      		'allowempty' => 1,
+      		'category'=> 'campaign',),
+      
     	"escrowHoldTime" => array (
       		'value' => 1,
      		'description' => 'Days escrowed messages are held before being discarded',
@@ -291,6 +298,8 @@ class submitByMailPlugin extends phplistPlugin
   	}
   	
   	function getCliPhp() {
+  		if ($cmd = getConfig("cliPath"))
+  			return $cmd;
   		exec('which php-cli', $output);
   		if ($output)
   			return trim($output[0]);
@@ -298,12 +307,23 @@ class submitByMailPlugin extends phplistPlugin
   		return trim($output[0]);
   	}
   	
+  	function ckPHPversion() {
+  		if ($cmd = $this->getCliPhp()) {
+  			exec ("$cmd -v", $output);
+  			if (preg_match ('/PHP\s*(\d\d?\.\d\d?)/', $output[0], $match))
+  				return $match[1];
+  		}
+  		return "";
+  	}
+  	
   	// Generate a command line PHP command to be used by emailajax.php
 	function makeCliCommand($page) {
-		$cmd = $this->getCliPhp();
-		$cmd = $cmd . ' -q ' . dirname(dirname($this->coderoot)) . '/index.php ';
-		$cmd .= '-c' . realpath($GLOBALS["configfile"]) . " -p$page -msubmitByMailPlugin";
-		return $cmd;
+		if ($cmd = $this->getCliPhp()) {
+			$cmd = $cmd . ' -q ' . dirname(dirname($this->coderoot)) . '/index.php ';
+			$cmd .= '-c' . realpath($GLOBALS["configfile"]) . " -p$page -msubmitByMailPlugin";
+			return $cmd;
+		}
+		return '';
 	}
   	
   	function adminmenu() {

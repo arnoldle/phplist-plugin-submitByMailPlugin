@@ -55,9 +55,8 @@ if ($_POST['scriptType']) {
 	if ($version < submitByMailGlobals::RECPHP) {
 		$info .= "<p><strong>This script uses PHP version $version. This is an earlier version than
 					version 5.4 recommended for use with phpList.</strong></p>";
-		$info .= "<p>If a later version of PHP is available, you might consider editing the script
-					to substitute the path to that version for the path appearing in 
-					the script.<p>";
+		$info .= "<p>If a later command line version of PHP is available, you might consider entering the 
+					binary path to that version into the submitByMailPlugin settings and then making this script again.<p>";
 	}
 	$info .= "</div>";
 	Info($info);
@@ -125,7 +124,7 @@ $("#scptGenForm").submit(function(event) {
 		myalert("You must enter a name for the directory where the script will be stored.");
 		return false;
 	}
-	event.preventDefault();
+	event.preventDefault(); 
 	$.post("plugins/submitByMailPlugin/sbmajax.php", {job:'ckdir', directory:dir}, function (data) {
 		switch(data) {
 				case 'OK':
@@ -141,7 +140,7 @@ $("#scptGenForm").submit(function(event) {
 					break;
 					} 
 		}
-	}, 'text');	
+	}, 'text');
 });
 </script>
 <style>
