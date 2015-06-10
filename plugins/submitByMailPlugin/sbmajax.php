@@ -28,8 +28,7 @@
  */
  // Ajax file called from edit_list.php to validate email address, verify POP credentials,
  // and to collect messages submitted via email
-require_once(dirname(__FILE__) ."/sbmGlobals.php");
-file_put_contents('/Users/arnoldvl/Desktop/debug.txt', 'job: ' . $_POST['job'] ."\n");
+require_once dirname(__FILE__) ."/sbmGlobals.php";
 
 // No access except via ajax called by one of the plugin pages.
 if (!isset($_POST['job']) || !isset($_SERVER["HTTP_REFERER"]) || !strpos($_SERVER["HTTP_REFERER"], 'pi=submitByMailPlugin')) die();
@@ -72,13 +71,11 @@ switch ($_POST['job']) {
 	case 'ckdir':
 		{
 			$dir = $_POST['directory'];
-file_put_contents('/Users/arnoldvl/Desktop/debug.txt', 'directory: ' . $dir ."\n", FILE_APPEND);
 			$status = 'OK';
 			if (!file_exists($dir) || !is_dir($dir))
 				$status = 'nodir';
 			else if (!is_writable($dir))
 				$status= 'nowrite';
-file_put_contents('/Users/arnoldvl/Desktop/debug.txt', 'status: ' . $status ."\n", FILE_APPEND);
 			print($status);
 			exit();
 		}

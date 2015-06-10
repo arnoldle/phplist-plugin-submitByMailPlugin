@@ -50,6 +50,17 @@ if ($_POST['scriptType']) {
 	if (substr($dir, -1) != '/') $dir .= '/';
 	file_put_contents($dir . $scptname, $script);
 	chmod ($dir . $scptname, 0755);
+	$version = $sbm->ckPHPversion();
+	$info = "<div style='font-size:14px'><p>Script '$scptname' generated and stored in directory: '$dir'</p>";
+	if ($version < submitByMailGlobals::RECPHP) {
+		$info .= "<p><strong>This script uses PHP version $version. This is an earlier version than
+					version 5.4 recommended for use with phpList.</strong></p>";
+		$info .= "<p>If a later version of PHP is available, you might consider editing the script
+					to substitute the path to that version for the path appearing in 
+					the script.<p>";
+	}
+	$info .= "</div>";
+	Info($info);
 }
 $str = <<<EOI
 <div style="font-size:14px">

@@ -27,10 +27,8 @@
  * http://resources.phplist.com/plugins/submitByMail .
  * 
  */
-
-// Ensure that a lack of prerequisites does not crash Phplist
-require_once(dirname(__FILE__)."/submitByMailPlugin/sbmGlobals.php");
-require_once 'Mail/mimeDecode.php';
+require_once dirname(__FILE__) . "/submitByMailPlugin/sbmGlobals.php";  	// __DIR__ not consistent with PHP 5.x earlier than 5.3
+require_once dirname(__FILE__) . "/submitByMailPlugin/PEAR/Mail/mimeDecode.php";
 /**
  * Registers the plugin with phplist
  * 
@@ -72,6 +70,7 @@ class submitByMailPlugin extends phplistPlugin
 	
 	public $tables = array ();	// Table names are prefixed by Phplist
 	public $commandlinePluginPages = array ('pipeInMsg', 'collectMsgs'); 
+	public $publicPages = array ('confirmMsg'); 
 	
 	// Note that the content type of the message must be multipart or text
     // The settings below apply to attachments.
@@ -89,7 +88,7 @@ class submitByMailPlugin extends phplistPlugin
 			'value' => 'gif, jpeg, pjpeg, tiff, png',
     		'description' => 'image/subtypes allowed for attachments',
     		'type' => 'text',
-    		'allowempty' => 0,
+    		'allowempty' => 1,
       		'category' => 'campaign',),
       		
       	"allowedMimeTypes" => array (
@@ -152,6 +151,7 @@ class submitByMailPlugin extends phplistPlugin
   							"toodeep" => "List '%s': Msg discarded; mime nesting too deep",
   							"badinlin" => "List '%s': Msg discarded; inline type not allowed"
   							);
+    private $days = array ('', 'one day', 'two days', 'three days', 'four days', 'five days', 'six days', 'seven days');
   							
   	public $numberPerList = 20;		// Number of lists tabulated per page in listing
   	public $isSecure; 				// Flags a secure connection. Set by constructor.
@@ -187,11 +187,21 @@ class submitByMailPlugin extends phplistPlugin
 			mkdir ($this->escrowdir);
 			
 		// Make sure our settings are in the database
+		$settings_initialized = true;
 		foreach ($this->settings as $item => $thesetting) {
-			if (!getConfig($item)) saveConfig($item, $thesetting['value']);
+			if (is_null(getConfig($item))) {
+				$settings_initialized = false;
+				break;
+			}
 		}
-		foreach ($this->mimeSettings as $item => $thesetting) {
-			if (!getConfig($item)) saveConfig($item, $thesetting['value']);
+		
+		if (!$settings_initialized) {
+			foreach ($this->settings as $item => $thesetting) {
+				saveConfig($item, $thesetting['value']);
+			}
+			foreach ($this->mimeSettings as $item => $thesetting) {
+				saveConfig($item, $thesetting['value']);
+			}
 		}
 		
 		$this->holdTime =getConfig("escrowHoldTime");
@@ -235,14 +245,8 @@ class submitByMailPlugin extends phplistPlugin
     	// the parent is constructed.
     	$this->deleteExpired();    		
     }
-   	    
-   function initialise() {
-   		// Base url for links to some of our pages
-		saveConfig('burl', $GLOBALS['scheme'] . "://" . $GLOBALS['website'] . $GLOBALS['pageroot'] . '/admin/');
-    	parent::initialise();
-    } 
-    
-    // Determine is we have a secure https connection.
+   	        
+    // Determine if we have a secure https connection.
     // This code was adapted from the comment by temuraru on the Stack Overflow page
     // at http://stackoverflow.com/questions/1175096/how-to-find-out-if-youre-using-https-without-serverhttps
     //
@@ -320,7 +324,7 @@ class submitByMailPlugin extends phplistPlugin
     	if (($this->lid) && ($this->subj == '(no subject)')) { 
     			//$this->lid is nonzero only if it is this plugin that is processing the
     			//message rather than Phplist's send_core.php
-    		return "Message cannot be sent with missing subject line.\n";
+    		return "Message cannot be sent with missing subject line.";
 		}
     	return '';
   	}
@@ -925,20 +929,25 @@ class submitByMailPlugin extends phplistPlugin
 			switch ($disposn) {
 				case 'escrow':
 					$tokn = $this->escrowMsg($msg);
-					$cfmlink = getConfig('burl') . "?page=confirmMsg&amp;pi=submitByMailPlugin&amp;mtk=$tokn";
-					sendMail($this->sender, 'Message Received and Escrowed', 
-						"<p>A message with the subject '" . $this->subj . "' was received and escrowed.</p>\n" .
-						"<p>To confirm this message, please click the following link:" .
-						'<a href="' . $cfmlink . '">' . $cfmlink . "</a>.</p>\n<p> You may need to login before reaching this page.</p>"
-						); 
+					$site = getConfig('website');
+					if (substr($site, -1) != '/') $site .= $site . '/';
+					$cfmlink = $GLOBALS["public_scheme"] . '://' . $site . $GLOBALS["pageroot"]; 
+					$cfmlink .= "/?p=confirmMsg&pi=submitByMailPlugin&mtk=$tokn";
+					$escrowMsg = "A message with the subject '" . $this->subj . "' was received and escrowed.\n\n";
+					$escrowMsg .= "To confirm this message, please click the following link:\n\n" ;
+					$escrowMsg .= "$cfmlink\n\n";
+					$escrowMsg .=	"You must confirm this message within " . $this->days[$this->holdTime];
+					$escrowMsg .= " or the message will be deleted.";
+					sendMail($this->sender, 'Message Received and Escrowed', $escrowMsg); 
 					logEvent("A message with the subject '" . $this->subj . "' was escrowed.");
 					if (is_array($count)) $count['escrow']++;
 					break;
 				case 'queue': 						
 					if ($err = $this->queueMsg($msg)) {
 						sendMail($this->sender, 'Message Received but NOT Queued', 
-							"<p>A message with the subject '" . $this->subj . 
-								"' was received. It was not queued because of the following error(s): $err<p> ");
+							"A message with the subject '" . $this->subj . 
+								"' was received. It was not queued because of the following error(s): \n\n$err\n" 
+								. "The message will be saved as a draft.");
 						logEvent("A message with the subject '" . $this->subj ."' received but not queued because of a problem.");
 						if (is_array($count)) $count['draft']++;
 					} else {
@@ -961,7 +970,7 @@ class submitByMailPlugin extends phplistPlugin
 	
 	// Some debugging utilities	
 	function ddump($var) {
-		print ('<pre>' . var_dump($var) . '</p>');
+		print ('<pre>' . var_dump($var) . '</pre>');
 	}
 	
 	function dprint($txt) {

@@ -34,6 +34,10 @@ $count = array();
 
 if ($GLOBALS['commandline']) { 
 	ob_end_clean();
+	if (!getConfig('manualMsgCollection')) {
+		logEvent("SBM config forbids attempt at command line message colledtion");
+		die();
+	}
 	$count['lost'] = $count['error'] = $count['escrow'] = $count['queue'] = $count['draft'] = 0;
 	if (isset($cline['e'])) { // Response to system call sent by ajax server
 		$myarray = array('submissionadr' => $cline[e]);
@@ -61,6 +65,7 @@ if ($GLOBALS['commandline']) {
 	
 	if (!isSuperUser()) {
 		print ("<p>You do not have sufficient privileges to view this page.</p>");
+		logEvent("Attempt to collect messages by non-super user.");
 		die();
 	}
 	

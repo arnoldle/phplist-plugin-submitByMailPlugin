@@ -31,4 +31,5 @@
 // that otherwise would have to be global through Phplist
 class submitByMailGlobals {
 	const SERVER_TAIL = ':995/pop3/ssl/novalidate-cert';
+	const RECPHP = 5.4; 	// Recommended version of PHP
 }
