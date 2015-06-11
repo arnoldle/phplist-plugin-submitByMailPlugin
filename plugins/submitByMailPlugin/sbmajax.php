@@ -66,13 +66,16 @@ switch ($_POST['job']) {
 			An issue with this call is that index.php tests $_SERVER['SERVER_SOFTWARE'] to 
 			detect command line operation.
 			
-			Unfortunately many hosting services set that item to 'Apache' in the subprocess 
-			from the exec(). Fortunately shell variables seem to be passed in the $_SERVER
-			array. So we can take care of the issue by unsetting SERVER_SOFTWARE as a
-			shell variable so that Phplist will recognize that we are exec-ing the command
+			Shell environmental variables seem to be passed through the $_SERVER array. 
+			This means that the 'SERVER_SOFTWARE' is passed with the value appropriate to
+			the web page that does the exec, usually 'Apache.' So we can take care of the 
+			issue by unsetting SERVER_SOFTWARE as an environmental variable before calling
+			the PHP binary, so that Phplist will recognize that we are exec-ing the command
 			line. Go to
 			http://stackoverflow.com/questions/10731183/set-server-variable-when-calling-php-from-command-line,
-			See the first answer and the comment by Alex Weinstein.
+			See the first answer and the comment by Alex Weinstein. 
+			
+			This issue cost me hours of frustration!
 			*/
 			$email = $_POST['param'];
 			$syscmd = 'unset SERVER_SOFTWARE; ' . $_POST['cmd'] . " -e$email";
