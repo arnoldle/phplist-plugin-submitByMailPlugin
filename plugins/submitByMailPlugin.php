@@ -262,9 +262,6 @@ class submitByMailPlugin extends phplistPlugin
     // might become open to spammers. The danger is less within mail accounts connected to 
     // a pipe, but still spammers could learn that the account is connected to a mailing list.
     //
-    // But when the connection is not secure, we will continue to allow use of the 
-    // plugin, but we will be careful not to expose any of the submission emails of the mailing
-    // lists to the browser.
     function isSecureConnection() {
     	if ($GLOBALS['commandline']) return true; 	// Command line is internal and secure (pipe 
     												// and cron and assuming SSH if on terminal)

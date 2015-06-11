@@ -36,30 +36,38 @@ $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 $dir = $_POST['directory'];
 
 if ($_POST['scriptType']) {
-	if ($_POST['scriptType'] == 'pipe') {
-		$script = "#!/bin/sh\n" .  $sbm->makeCliCommand('pipeInMsg') . " -e$1>/dev/null 2>&1";
-		$scptname = 'pipeMsg.sh';
-	} elseif (($_POST['scriptType'] == 'collect')) {
-		$script = "#!/bin/sh\n" . $sbm->makeCliCommand('collectMsgs');
-		$scptname = 'collectMsgs.sh';
+	if ($version = $sbm->ckPHPversion()) {
+		if ($_POST['scriptType'] == 'pipe') {
+			$script = "#!/bin/sh\n" .  $sbm->makeCliCommand('pipeInMsg') . " -e$1>/dev/null 2>&1";
+			$scptname = 'pipeMsg.sh';
+		} elseif (($_POST['scriptType'] == 'collect')) {
+			$script = "#!/bin/sh\n" . $sbm->makeCliCommand('collectMsgs');
+			$scptname = 'collectMsgs.sh';
+		} else {
+			$script = "#!/bin/sh\n" . $sbm->makeCliCommand('processqueue');
+			$script = str_replace(' -msubmitByMailPlugin', '', $script);
+			$scptname = 'processQueue.sh';
+		}
+		if (substr($dir, -1) != '/') $dir .= '/';
+		file_put_contents($dir . $scptname, $script);
+		chmod ($dir . $scptname, 0755);
+		$info = "<div style='font-size:14px'><p>Script '$scptname' generated and stored in directory: '$dir'</p>";
+		if ($version < submitByMailGlobals::RECPHP) {
+			$info .= "<p><strong>This script uses PHP version $version. This is an earlier version than
+					version 5.4+ recommended for use with phpList.</strong></p>";
+			$info .= "<p>If a later command line version of PHP is available, you might consider entering the 
+					path to that version into the submitByMailPlugin settings and then generating this script again.<p>";
+			$info .= "</div>";
+			Info($info);
+		}
 	} else {
-		$script = "#!/bin/sh\n" . $sbm->makeCliCommand('processqueue');
-		$script = str_replace(' -msubmitByMailPlugin', '', $script);
-		$scptname = 'processQueue.sh';
-	}
-	if (substr($dir, -1) != '/') $dir .= '/';
-	file_put_contents($dir . $scptname, $script);
-	chmod ($dir . $scptname, 0755);
-	$version = $sbm->ckPHPversion();
-	$info = "<div style='font-size:14px'><p>Script '$scptname' generated and stored in directory: '$dir'</p>";
-	if ($version < submitByMailGlobals::RECPHP) {
-		$info .= "<p><strong>This script uses PHP version $version. This is an earlier version than
-					version 5.4 recommended for use with phpList.</strong></p>";
-		$info .= "<p>If a later command line version of PHP is available, you might consider entering the 
-					binary path to that version into the submitByMailPlugin settings and then making this script again.<p>";
-	}
-	$info .= "</div>";
-	Info($info);
+		$alignP = '<p style="text-align:left;">';
+		$info ='<div style="font-size:14px"><p>Unable to access PHP command line binary. <strong>Script NOT generated!</strong></p>';
+		$info .= "{$alignP}You must enter the correct path to the binary into the submitByMailPlugin settings or empty the setting";
+		$info .= " to allow the plugin to find the binary itself.</p>{$alignP}If a command line binary is not available to the plugin,";
+		$info .= ' message collection is NOT possible &mdash; neither through the browser nor on the command line.</p></div>';
+		Warn($info);
+	}	
 }
 $str = <<<EOI
 <div style="font-size:14px">

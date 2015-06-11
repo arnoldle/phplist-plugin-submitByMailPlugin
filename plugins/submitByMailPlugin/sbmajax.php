@@ -60,10 +60,22 @@ switch ($_POST['job']) {
 		}
 	case 'getmsgs':
 		{
-			// This file does not load Phplist. So the only way we can actually download
-			// and process messages is to call a page of the SBM plugin with a system command.
+			/* 
+			This file does not load Phplist. So the only way we can actually download
+			and process messages is to call a page of the SBM plugin with a system command.
+			An issue with this call is that index.php tests $_SERVER['SERVER_SOFTWARE'] to 
+			detect command line operation.
+			
+			Unfortunately many hosting services set that item to 'Apache' in the subprocess 
+			from the exec(). Fortunately shell variables seem to be passed in the $_SERVER
+			array. So we can take care of the issue by unsetting SERVER_SOFTWARE as a
+			shell variable so that Phplist will recognize that we are exec-ing the command
+			line. Go to
+			http://stackoverflow.com/questions/10731183/set-server-variable-when-calling-php-from-command-line,
+			See the first answer and the comment by Alex Weinstein.
+			*/
 			$email = $_POST['param'];
-			$syscmd = $_POST['cmd'] . " -e$email";
+			$syscmd = 'unset SERVER_SOFTWARE; ' . $_POST['cmd'] . " -e$email";
 			exec ($syscmd, $output);	// $output is an array containing the result counts for the messages processed.
 			print($output[0]);
 			exit();
