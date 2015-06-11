@@ -122,7 +122,7 @@ function getmsgs() {;
 	$("#mybtn").hide();
 	var i = 0;
 	function mypost() {
-		$('div.panel>div.header>h2').html('Collecting messages from ' + adrs[i] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img style="width:25px; height:25px;" src="plugins/submitByMailPlugin/spin.gif">');
+		$('div.panel>div.header>h2').html('Collecting messages from ' + adrs[i] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img style="width:34px; height:34px;" src="images/busy.gif">');
 		$.post("plugins/submitByMailPlugin/sbmajax.php",{job:'getmsgs', cmd:'{{{phpcommand}}}', param:adrs[i]}).done(function(data) {
 		        var cnt = JSON.parse(data);
 				$.each (cnt, function (itm, val) {
@@ -157,8 +157,7 @@ ESO;
 	$i = count($popAccts);
 	$acctstr = '';
 	foreach ($popAccts as $acct) {
-		if ($sbm->isSecure) $acctstr .= '"' . $acct['submissionadr'] . '"';
-		else $acctstr .= '"' . $acct['id'] . '"';
+		$acctstr .= '"' . $acct['submissionadr'] . '"';
 		$i--;
 		if ($i) $acctstr .= ', ';
 	}
