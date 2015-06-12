@@ -185,6 +185,13 @@ class submitByMailPlugin extends phplistPlugin
   	
   	function __construct()
     {
+    	if (DIRECTORY_SEPARATOR != '/') { // The plugin is not suitable for Windows
+    		$this->DBstruct = $this->mimeSettings = $this->settings =
+    			$this->pageTitles = $this->topMenuLinks = array();
+    		parent::__construct();
+    		return;
+    	}
+    	
 	   	$this->coderoot = dirname(__FILE__) . '/submitByMailPlugin/';
 	   	
 	   	$this->isSecure = $this->isSecureConnection();
@@ -193,24 +200,6 @@ class submitByMailPlugin extends phplistPlugin
 		if (!is_dir($this->escrowdir))
 			mkdir ($this->escrowdir);
 			
-		// Make sure our settings are in the database
-		$settings_initialized = true;
-		foreach ($this->settings as $item => $thesetting) {
-			if (is_null(getConfig($item))) {
-				$settings_initialized = false;
-				break;
-			}
-		}
-		
-		if (!$settings_initialized) {
-			foreach ($this->settings as $item => $thesetting) {
-				saveConfig($item, $thesetting['value']);
-			}
-			foreach ($this->mimeSettings as $item => $thesetting) {
-				saveConfig($item, $thesetting['value']);
-			}
-		}
-		
 		$this->holdTime =getConfig("escrowHoldTime");
 			
 		if (ALLOW_ATTACHMENTS) 
@@ -275,7 +264,7 @@ class submitByMailPlugin extends phplistPlugin
     # Returns false when we do not have the prereqs, which means we cannot start
     # Also returns false when not running off a secure connection
     function activate() {
-        return ($this->isSecure);
+        return (DIRECTORY_SEPARATOR == '/') && ($this->isSecure);
   	}
 
 	// Delete expired messages in escrow

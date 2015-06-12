@@ -262,7 +262,7 @@ $("#sbmConfigEdit").submit(function( event ) {
 			myalert("You cannot collect messages with POP without specifying a server and a password!");
 			return false;
 		}
-		mynotice('Verifying POP credentials<img style="width:40px; height:40px; display:block; margin-left:auto; margin-right:auto; margin-top: 10px;" src="plugins/submitByMailPlugin/spin.gif">');
+		mynotice('Verifying POP credentials<img style="width:40px; height:40px; display:block; margin-left:auto; margin-right:auto; margin-top: 10px;" src="images/busy.gif">');
 	}
 	
 	$.post( "plugins/submitByMailPlugin/sbmajax.php", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
