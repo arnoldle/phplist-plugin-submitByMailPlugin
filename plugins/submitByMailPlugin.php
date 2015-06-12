@@ -198,12 +198,20 @@ class submitByMailPlugin extends phplistPlugin
 		
 		// We must not attemtpt to use the settings before they are configured
 		// Nor do we need to worry about expired messages before configuration
-		$this->holdTime =getConfig("escrowHoldTime");
-		if (!$this->holdTime) {
+		//
+		// We cannot use getConfig() to test if the item has been configured, because
+		// getConfig() seems to create the entry in the configuration table, if the
+		// item is not there.
+		$testitm = 'escrowHoldTime';
+		$query = "select exists(" . sprintf ("select item from %s where item = '%s'",
+			$GLOBALS['tables']['config'], $testitm) . ")";
+		if (Sql_query($query) != 'TRUE') {
 			parent::__construct();
 			return;
 		}
-			
+		
+		$this->holdTime =getConfig("escrowHoldTime");	
+		
 		// Build array of allowed MIME types and subtypes
 		$str = getConfig('allowedTextSubtypes');
     	$str = strtolower(str_replace(' ','', $str));
