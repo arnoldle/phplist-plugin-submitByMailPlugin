@@ -959,7 +959,6 @@ class submitByMailPlugin extends phplistPlugin
 				case 'escrow':
 					$tokn = $this->escrowMsg($msg);
 					$site = getConfig('website');
-					if (substr($site, -1) != '/') $site .= $site . '/';
 					$cfmlink = $GLOBALS["public_scheme"] . '://' . $site . $GLOBALS["pageroot"]; 
 					$cfmlink .= "/?p=confirmMsg&pi=submitByMailPlugin&mtk=$tokn";
 					$escrowMsg = "A message with the subject '" . $this->subj . "' was received and escrowed.\n\n";

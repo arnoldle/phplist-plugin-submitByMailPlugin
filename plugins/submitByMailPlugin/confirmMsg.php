@@ -36,7 +36,7 @@ if (isset($_GET['mtk'])) {
 	$res .= $GLOBALS['pagedata']["header"];
 	$res .= "<h3>Confirm Message</h3>";
 	$token = $_GET['mtk'];
-	$query = sprintf("select file_name, sender, subject, listid, listsaddressed from %s where token='%s'", $sbm->tables['escrow'], $token);
+	$query = sprintf("select file_name, sender, subject, listid, listsadressed from %s where token='%s'", $sbm->tables['escrow'], $token);
 	// Don't need to check for expiration of the message, since an expired message will
 	// already have been removed as the plugin was constructed in order to load this page
 	$result=Sql_Query($query);
