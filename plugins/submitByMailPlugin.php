@@ -126,7 +126,8 @@ class submitByMailPlugin extends phplistPlugin
     		'description' => 'Additional MIME content-types allowed for attachments',
     		'type' => 'text',
     		'allowempty' => 1,
-      		'category' => 'campaign',),);
+      		'category' => 'campaign',),
+      	);
 	
 	// Arrays for the menu system
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
@@ -196,9 +197,6 @@ class submitByMailPlugin extends phplistPlugin
 			mkdir ($this->escrowdir);
 			
 		$this->holdTime =getConfig("escrowHoldTime");
-			
-		if (ALLOW_ATTACHMENTS) 
-			$this->settings = array_merge($this->settings, $this->mimeSettings);
 			
 		// Build array of allowed MIME types and subtypes
 		$str = getConfig('allowedTextSubtypes');
