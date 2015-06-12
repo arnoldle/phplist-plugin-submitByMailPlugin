@@ -41,6 +41,7 @@ if (isset($_POST['search']) || isset($_POST['update'])) {
 }
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
+$sbm->warnIfNotConfigured();
 
 /* For paging the listing of the mail lists */
 if (isset($_GET["start"])){

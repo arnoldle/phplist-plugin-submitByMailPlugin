@@ -196,16 +196,13 @@ class submitByMailPlugin extends phplistPlugin
 		if (!is_dir($this->escrowdir))
 			mkdir ($this->escrowdir);
 		
-		// We must not attemtpt to use the settings before they are configured
+		// We must not attemtpt to use the plugin settings before they are configured
 		// Nor do we need to worry about expired messages before configuration
 		//
 		// We cannot use getConfig() to test if the item has been configured, because
 		// getConfig() seems to create the entry in the configuration table, if the
 		// item is not there.
-		$testitm = 'escrowHoldTime';
-		$query = "select exists(" . sprintf ("select item from %s where item = '%s'",
-			$GLOBALS['tables']['config'], $testitm) . ")";
-		if (Sql_query($query) != 'TRUE') {
+		if ($this->notconfigured()) {
 			parent::__construct();
 			return;
 		}
@@ -248,7 +245,22 @@ class submitByMailPlugin extends phplistPlugin
     	// the parent is constructed.
     	$this->deleteExpired();    		
     }
-   	        
+    
+    // This function returns true, if the plugin settings do not yet have values
+    // in the phpList configuration table.
+    function notConfigured () {
+		$testitm = 'escrowHoldTime';
+		$query = "select exists(" . sprintf ("select item from %s where item = '%s'",
+			$GLOBALS['tables']['config'], $testitm) . ")";
+		return (Sql_query($query) != 'TRUE') ;
+	}
+   	 
+   	function warnIfNotConfigured() {
+   		if ($this->notConfigured()) {
+   			Warn ('<strong>You must configure the plugin settings before using this page!</strong>');
+   			die();
+   		}
+   	}       
     // Determine if we have a secure https connection.
     // This code was adapted from the comment by temuraru on the Stack Overflow page
     // at http://stackoverflow.com/questions/1175096/how-to-find-out-if-youre-using-https-without-serverhttps

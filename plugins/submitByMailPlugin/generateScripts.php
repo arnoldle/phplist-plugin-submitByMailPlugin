@@ -33,6 +33,8 @@
 if (!defined('PHPLISTINIT')) die(); // avoid pages being loaded directly
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
+$sbm-> warnIfNotConfigured();
+
 $dir = $_POST['directory'];
 
 if ($_POST['scriptType']) {

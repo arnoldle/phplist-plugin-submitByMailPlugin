@@ -69,6 +69,8 @@ if ($GLOBALS['commandline']) {
 	die();
 	}
 } else {
+
+	$sbm->warnIfNotConfigured();
 	
 	if (!isSuperUser()) {
 		print ("<p>You do not have sufficient privileges to view this page.</p>");
