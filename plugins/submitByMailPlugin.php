@@ -182,7 +182,7 @@ class submitByMailPlugin extends phplistPlugin
   	function __construct()
     {
     	if (DIRECTORY_SEPARATOR != '/') { // The plugin is not suitable for Windows
-    		$this->DBstruct = $this->mimeSettings = $this->settings =
+    		$this->DBstruct = $this->settings =
     			$this->pageTitles = $this->topMenuLinks = array();
     		parent::__construct();
     		return;
@@ -195,8 +195,14 @@ class submitByMailPlugin extends phplistPlugin
 		$this->escrowdir = $this->coderoot . "escrow/";
 		if (!is_dir($this->escrowdir))
 			mkdir ($this->escrowdir);
-			
+		
+		// We must not attemtpt to use the settings before they are configured
+		// Nor do we need to worry about expired messages before configuration
 		$this->holdTime =getConfig("escrowHoldTime");
+		if (!$this->holdTime) {
+			parent::__construct();
+			return;
+		}
 			
 		// Build array of allowed MIME types and subtypes
 		$str = getConfig('allowedTextSubtypes');
