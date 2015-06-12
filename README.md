@@ -17,32 +17,22 @@ Messages submitted are rejected if they do not come from a superuser or the list
 
 The schedule and template for messages queued immediately are the default values.
 
-There will be page available to each list administrator to allow her/him to collect and process messages for their lists. Optionally this function can be carried out through a command line command, allowing the message collection and processing to be scheduled through cron.
+There is a page available superusers, allowing them to collect and process messages for all the lists. Optionally this function can be carried out through a command line command, allowing the message collection and processing to be scheduled through cron.
 
 Messages submitted via a UNIX pipe than through POP will be escrowed or processed immediately.
+
+There is a page that will allow command line scripts to be generated automatically for a mailbox pipe, for collection of messages, or to process the queue.
 
 Plugins are given access to submitted messages at the time submitted messages are saved and when such messages are queued.
 
 Please note that certain prerequisites are necessary in order to activate the plugin.
 *1. You must be running on a secure connection (https: instead of http:).
 *2. The imap extension for PHP must be available and turned on.
-*3. The PEAR MIME decoder must be installed.
+*3. The PEAR MIME decoder is required but is now distributed with the plugin, thanks to a suggestion of Duncan Cameron.
+*4. The plugin is designed for Unix/Linux boxes. You can install it on Windows, but it cannot be activated.
 
-Again, a secure connection is required to use this plugin. A subsequent version will provide operations suitable for use on an unsecured connection.
+Again, a secure connection is required to use this plugin. 
 
 A Late Update
 
-May 10, 2015
-
-The code is now complete. The code is complete and thoroughly debugged. What is available here can be considered a candidate for release. It has not yet been tested in actual use, but you are welcome to try it. I would appreciate the help with testing!
-
-The docs are not yet written, but you should be able to figure out things. After installation the plugin settings are available at the bottom of the campaign category. You will find the plugin pages in the plugin menu.
-
-f you are running a later version of Phplist (3.07+), you should be able to install the plugin using the plugin installer provided by Phplist. 
-
-Don't try to use this plugin for anything critical! Use at your own risk!
-
-Current target dates
-
-June 30 (or before): the first release, 1.0a1
-
+The present release is available and will be announced as soon as I can get the updated documentation ready. The documentation for this release will be posted at https://resources.phplist.com/plugins/submitbymail.
