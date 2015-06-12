@@ -72,33 +72,6 @@ class submitByMailPlugin extends phplistPlugin
 	public $commandlinePluginPages = array ('pipeInMsg', 'collectMsgs'); 
 	public $publicPages = array ('confirmMsg'); 
 	
-	// Note that the content type of the message must be multipart or text
-    // The settings below apply to attachments.
-    // Note also that we do not allow multipart attachments.
-    // These settings are not accessible unless attachments are allowed
-    public $mimeSettings = array (
-    	"allowedTextSubtypes" => array(
-			'value' => 'plain, html',
-    		'description' => 'MIME text/subtypes allowed for attachments',
-    		'type' => 'text',
-    		'allowempty' => 0,
-      		'category' => 'campaign',),
-      		
-		'allowedImageSubtypes' => array(
-			'value' => 'gif, jpeg, pjpeg, tiff, png',
-    		'description' => 'image/subtypes allowed for attachments',
-    		'type' => 'text',
-    		'allowempty' => 1,
-      		'category' => 'campaign',),
-      		
-      	"allowedMimeTypes" => array (
-    		'value' => 'application/pdf',
-    		'description' => 'Additional MIME content-types allowed for attachments',
-    		'type' => 'text',
-    		'allowempty' => 1,
-      		'category' => 'campaign',),
-    );
-    		
 	public $settings = array(
     	"cliPath" => array (
       		'value' => '',
@@ -130,8 +103,30 @@ class submitByMailPlugin extends phplistPlugin
       		'allowempty' => 1,
       		"max" => 120,
       		"min" => 0,
-      		'category'=> 'campaign',),  				
-	);
+      		'category'=> 'campaign',), 
+    // Note that the content type of the message must be multipart or text
+    // The settings below apply to attachments.
+    // Note also that we do not allow multipart attachments.
+		"allowedTextSubtypes" => array(
+			'value' => 'plain, html',
+    		'description' => 'MIME text/subtypes allowed for attachments',
+    		'type' => 'text',
+    		'allowempty' => 0,
+      		'category' => 'campaign',),
+      		
+		'allowedImageSubtypes' => array(
+			'value' => 'gif, jpeg, pjpeg, tiff, png',
+    		'description' => 'image/subtypes allowed for attachments',
+    		'type' => 'text',
+    		'allowempty' => 1,
+      		'category' => 'campaign',),
+      		
+      	"allowedMimeTypes" => array (
+    		'value' => 'application/pdf',
+    		'description' => 'Additional MIME content-types allowed for attachments',
+    		'type' => 'text',
+    		'allowempty' => 1,
+      		'category' => 'campaign',),);
 	
 	// Arrays for the menu system
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
@@ -973,19 +968,6 @@ class submitByMailPlugin extends phplistPlugin
 			}
 		}		
 	} 
-	
-	// Some debugging utilities	
-	function ddump($var) {
-		print ('<pre>' . var_dump($var) . '</pre>');
-	}
-	
-	function dprint($txt) {
-		print ("<pre>$txt</pre>");
-	}
 }
 
-/* Set up a toggle for processQueue and collectMsgs so that you can use only  
-one script in cron to do both jobs. You can create and initialize the toggle
-when the plugin is intialized.
-*/
 ?>

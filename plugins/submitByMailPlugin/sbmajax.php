@@ -28,6 +28,9 @@
  */
  // Ajax file called from edit_list.php to validate email address, verify POP credentials,
  // and to collect messages submitted via email
+ // Note: the RFC's don't seem to require any particular headers here. See
+ // http://stackoverflow.com/questions/4726515/what-http-response-headers-are-required
+
 require_once dirname(__FILE__) ."/sbmGlobals.php";
 
 // No access except via ajax called by one of the plugin pages.
