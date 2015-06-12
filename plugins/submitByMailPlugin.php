@@ -157,8 +157,7 @@ class submitByMailPlugin extends phplistPlugin
     private $days = array ('', 'one day', 'two days', 'three days', 'four days', 'five days', 'six days', 'seven days');
   							
   	public $numberPerList = 20;		// Number of lists tabulated per page in listing
-  	public $isSecure; 				// Flags a secure connection. Set by constructor.
-	
+  	
 	private $allowedMimes = array(); // Allowed MIME subtypes keyed on types
 	private $allowedMain = array(); // MIME subtypes allowed as main message, keyed
 									// on types
@@ -181,18 +180,16 @@ class submitByMailPlugin extends phplistPlugin
   	
   	function __construct()
     {
-    	if (DIRECTORY_SEPARATOR != '/') { // The plugin is not suitable for Windows
-    		$this->DBstruct = $this->settings =
-    			$this->pageTitles = $this->topMenuLinks = array();
+    	if ((strtoupper(substr(php_uname('s'), 0, 3)) == 'WIN') ||
+    			!$this->isSecureConnection()) { // Don't have prerequisites
+    		$this->uninitialize();
     		parent::__construct();
     		return;
     	}
     	
-	   	$this->coderoot = dirname(__FILE__) . '/submitByMailPlugin/';
+    	$this->coderoot = dirname(__FILE__) . '/submitByMailPlugin/';
 	   	
-	   	$this->isSecure = $this->isSecureConnection();
-		
-		$this->escrowdir = $this->coderoot . "escrow/";
+	   	$this->escrowdir = $this->coderoot . "escrow/";
 		if (!is_dir($this->escrowdir))
 			mkdir ($this->escrowdir);
 		
@@ -250,17 +247,24 @@ class submitByMailPlugin extends phplistPlugin
     // in the phpList configuration table.
     function notConfigured () {
 		$testitm = 'escrowHoldTime';
-		$query = "select exists(" . sprintf ("select item from %s where item = '%s'",
-			$GLOBALS['tables']['config'], $testitm) . ")";
-		return (Sql_query($query) != 'TRUE') ;
+		$query = sprintf ("select item from %s where item = '%s'",
+			$GLOBALS['tables']['config'], $testitm);
+		return (Sql_Num_Rows(Sql_query($query)) == 0);
 	}
    	 
    	function warnIfNotConfigured() {
    		if ($this->notConfigured()) {
-   			Warn ('<strong>You must configure the plugin settings before using this page!</strong>');
+   			Warn ('<strong>You must review the plugin settings before using this page!</strong>');
    			die();
    		}
-   	}       
+   	}  
+   	
+   	// Remove initialization flag into phpList configuration table to prevent
+   	// use of plug in after it is found that we do not have the proper prequisites
+   	function uninitialize() {
+   		Sql_Query(sprintf("delete from %s where item ='%s'", $GLOBALS['tables']['config'], 
+    					md5('plugin-submitByMailPlugin-initialised')));
+   	}     
     // Determine if we have a secure https connection.
     // This code was adapted from the comment by temuraru on the Stack Overflow page
     // at http://stackoverflow.com/questions/1175096/how-to-find-out-if-youre-using-https-without-serverhttps
@@ -283,7 +287,7 @@ class submitByMailPlugin extends phplistPlugin
     # Returns false when we do not have the prereqs, which means we cannot start
     # Also returns false when not running off a secure connection
     function activate() {
-        return (DIRECTORY_SEPARATOR == '/') && ($this->isSecure);
+        return true;
   	}
 
 	// Delete expired messages in escrow
