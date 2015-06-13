@@ -242,22 +242,6 @@ class submitByMailPlugin extends phplistPlugin
     	// the parent is constructed.
     	$this->deleteExpired();    		
     }
-    
-    // This function returns true, if the plugin settings do not yet have values
-    // in the phpList configuration table.
-    function notConfigured () {
-		$testitm = 'escrowHoldTime';
-		$query = sprintf ("select item from %s where item = '%s'",
-			$GLOBALS['tables']['config'], $testitm);
-		return (Sql_Num_Rows(Sql_query($query)) == 0);
-	}
-   	 
-   	function warnIfNotConfigured() {
-   		if ($this->notConfigured()) {
-   			Warn ('<strong>You must review the plugin settings before using this page!</strong>');
-   			die();
-   		}
-   	}  
    	
    	// Remove initialization flag into phpList configuration table to prevent
    	// use of plug in after it is found that we do not have the proper prequisites

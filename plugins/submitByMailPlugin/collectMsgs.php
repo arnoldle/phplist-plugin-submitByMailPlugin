@@ -70,8 +70,6 @@ if ($GLOBALS['commandline']) {
 	}
 } else {
 
-	$sbm->warnIfNotConfigured();
-	
 	if (!isSuperUser()) {
 		print ("<p>You do not have sufficient privileges to view this page.</p>");
 		logEvent("Attempt to collect messages by non-super user.");

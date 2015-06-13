@@ -27,6 +27,7 @@
  * 
  */
 if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
+
 if (!(int)isSuperUser()) {
 	print ("<p>You do not have sufficient privileges to view this page.</p>");
 	return;
@@ -41,7 +42,6 @@ if (isset($_POST['search']) || isset($_POST['update'])) {
 }
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
-$sbm->warnIfNotConfigured();
 
 /* For paging the listing of the mail lists */
 if (isset($_GET["start"])){
