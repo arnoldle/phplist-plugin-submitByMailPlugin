@@ -193,17 +193,6 @@ class submitByMailPlugin extends phplistPlugin
 		if (!is_dir($this->escrowdir))
 			mkdir ($this->escrowdir);
 		
-		// We must not attemtpt to use the plugin settings before they are configured
-		// Nor do we need to worry about expired messages before configuration
-		//
-		// We cannot use getConfig() to test if the item has been configured, because
-		// getConfig() seems to create the entry in the configuration table, if the
-		// item is not there.
-		if ($this->notconfigured()) {
-			parent::__construct();
-			return;
-		}
-		
 		$this->holdTime =getConfig("escrowHoldTime");	
 		
 		// Build array of allowed MIME types and subtypes
@@ -587,7 +576,7 @@ class submitByMailPlugin extends phplistPlugin
 			/* We should respond to a list owner, even if the message is not sent
 			to lists owned by that person. The code 'unauth' suppresses a response.
 			if (!array_intersect ($this->alids, $owned))
-				return 'unauth';						*/
+				return 'unauth';		*/									
 			if (array_diff($this->alids, $owned))
 				return 'unauthp';
 		}
@@ -695,7 +684,7 @@ class submitByMailPlugin extends phplistPlugin
 	}
 	
 	/*	The following methods are not useable independently. They have been pulled out
-		out of receiveMsg in order to make the logic clearer and to ease testing. */
+		out of receiveMsg in order to make the logic clearer and to ease testing.   */
 	// Save the $messagedata array in the database. This code if taken almost verbatim
 	// from the Phplist file sendcore.php. We save the message data only after setting
 	// the message status. Requires the class property $this->mid to be set.
