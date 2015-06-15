@@ -180,7 +180,7 @@ class submitByMailPlugin extends phplistPlugin
   	
   	function __construct()
     {
-    	if ((strtoupper(substr(php_uname('s'), 0, 3)) == 'WIN') ||
+    	if (!function_exists('imap_open') || (strtoupper(substr(php_uname('s'), 0, 3)) == 'WIN') ||
     			!$this->isSecureConnection()) { // Don't have prerequisites
     		$this->uninitialize();
     		parent::__construct();
