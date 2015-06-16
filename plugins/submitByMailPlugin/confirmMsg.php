@@ -43,7 +43,7 @@ if (isset($_GET['mtk'])) {
 	if (Sql_Num_Rows($result)) {
 		$msgdata = Sql_Fetch_Assoc($result);
 		$sbm->subj = $msgdata['subject'];
-		$sbm->sender = $msgdata['sender'];
+		$sbm->sender = $sbm->cleanAdr($msgdata['sender'], true);
 		$sbm->lid = $msgdata['listid'];
 		$sbm->alids =unserialize($msgdata['listsaddressed']);
 		$fn = $sbm->escrowdir . $msgdata['file_name'];

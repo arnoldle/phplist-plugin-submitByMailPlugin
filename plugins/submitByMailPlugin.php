@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2.1
+ * submitByMail plugin version 1.0b2.2
  * 
  *
  * @category  phplist
@@ -40,7 +40,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2.1';
+    public $version = '1.0b2.2';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -170,6 +170,7 @@ class submitByMailPlugin extends phplistPlugin
 	public $lid = 0;		// ID of the list whose mailbox is handling the message (the first list sent to)
 	public $alids = array();	// IDs for the lists receiving current message
 	public $sender = '';		// Sender of the current message
+	public $displayName = '';	// Name of the sender
 	public $subj = '';			// Subject line of the current message
 	private $mid;				// Message ID for current message being saved or queued
 	private $holdTime;			// Days to hold escrowed message
@@ -480,12 +481,17 @@ class submitByMailPlugin extends phplistPlugin
     }
     
     // Get out the email address from a string of the form Name<email_address>
-	function cleanAdr ($adr) {
-		if (preg_match('/<(.*)>/', $adr, $match))
-			return trim($match[1]);
-		return trim($adr);
-	}
-    
+    // Modified to show display name of sender
+	function cleanAdr ($adr, $setDisplayName=false) { 
+		if ($setDisplayName)
+			$this->displayName = ''; 
+		 if (preg_match('/<(.*)>/', $adr, $match)) { 
+			if ($setDisplayName)
+			 	$this->displayName = trim(str_replace($match[0],'', $adr)); 
+			 return trim($match[1]); 
+		} 
+		return trim($adr); 
+	}    
     // Get filename associated with a MIME part if there is one
     function getFn($apart) {
     	if (isset($apart->d_parameters['filename']))
@@ -601,7 +607,7 @@ class submitByMailPlugin extends phplistPlugin
 		$out = $decoder->decode($params);
 		$hdrs = $out->headers;
 
-		$this->sender = $this->cleanAdr($hdrs['from']);
+		$this->sender = $this->cleanAdr($hdrs['from'], true); // Modified to show display name of sender
 		if (!($hdrs['to'] && $this->sender)) return 'nodecode';
 		
 		$this->subj = trim($hdrs['subject']); 
@@ -658,8 +664,10 @@ class submitByMailPlugin extends phplistPlugin
 		$fname = basename($tfn);
 		$tokn = $this->generateRandomString();
 		$xpir = time() + self::ONE_DAY * $this->holdTime;
+		// Modified the lines below so that we can show the display name of the sender
+		$sndr = ($this->displayName? $this->displayName . ' <' . $this->sender . '>' : $this->sender);
 		$query = sprintf ("insert into %s values ('%s', '%s', '%s','%s', %d, '%s', %d)", $this->tables['escrow'], $tokn, $fname, 
-			sql_escape($this->sender), sql_escape($this->subj), $this->lid, sql_escape(serialize ($this->alids)), $xpir);
+			sql_escape($sndr), sql_escape($this->subj), $this->lid, sql_escape(serialize ($this->alids)), $xpir);
 		Sql_Query($query);
 		return $tokn;
 	}
@@ -821,7 +829,7 @@ class submitByMailPlugin extends phplistPlugin
       	// and the MIME decoded message
       	$messagedata = loadMessageData($this->mid);
       	$messagedata['subject'] = $this->subj;
-      	$messagedata['fromfield'] = $this->sender;
+      	$messagedata['fromfield'] = ($this->displayName? $this->displayName . ' <' . $this->sender . '>' : $this->sender);
       	$tempftr = $this->getListTmpltFtr($this->lid);
       	$messagedata['template'] = $tempftr[0];
       	$messagedata['footer'] = $tempftr[1];
