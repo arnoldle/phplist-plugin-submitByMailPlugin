@@ -40,7 +40,7 @@ switch ($_POST['job']) {
 	case 'validate': 
 	case 'verify': 
 		{   
-			$user=$_POST['user'];	// $user is the email address we're working with
+			$user=trim($_POST['user']);	// $user is the email address we're working with
 			if (!filter_var($user, FILTER_VALIDATE_EMAIL)) {
 				print('INVALID');
 				exit();
@@ -51,8 +51,8 @@ switch ($_POST['job']) {
 				exit();
 			}
  
-  			$authhost= '{' . $_POST['server'] . submitByMailGlobals::SERVER_TAIL . '}';
-			$pass = $_POST['pass'];
+  			$authhost= '{' . trim($_POST['server']) . submitByMailGlobals::SERVER_TAIL . '}';
+			$pass = trim($_POST['pass']);
 
 			if ($mbox=@imap_open( $authhost, $user, $pass )) { 	// No warning if imap_open fails!
         		imap_close($mbox);
@@ -80,15 +80,15 @@ switch ($_POST['job']) {
 			
 			This issue cost me hours of frustration!
 			*/
-			$email = $_POST['param'];
-			$syscmd = 'unset SERVER_SOFTWARE; ' . $_POST['cmd'] . " -e$email";
+			$email = trim($_POST['param']);
+			$syscmd = 'unset SERVER_SOFTWARE; ' . trim($_POST['cmd']) . " -e$email";
 			exec ($syscmd, $output);	// $output is an array containing the result counts for the messages processed.
 			print($output[0]);
 			exit();
 		}
 	case 'ckdir':
 		{
-			$dir = $_POST['directory'];
+			$dir = trim($_POST['directory']);
 			$status = 'OK';
 			if (!file_exists($dir) || !is_dir($dir))
 				$status = 'nodir';

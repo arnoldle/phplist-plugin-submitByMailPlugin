@@ -34,7 +34,7 @@ if (!defined('PHPLISTINIT')) die(); // avoid pages being loaded directly
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 
-$dir = $_POST['directory'];
+$dir = trim($_POST['directory']);
 
 if ($_POST['scriptType']) {
 	if ($version = $sbm->ckPHPversion()) {
