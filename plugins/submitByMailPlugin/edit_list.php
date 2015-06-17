@@ -92,7 +92,7 @@ if ($row = Sql_Fetch_Assoc_Query($query)) {
 		$queue = '';
 	}
 	$tmplt = $row['template'];
-	$footer = $row['footer'];
+	$footer = stripslashes($row['footer']); // Magic quotes apparently! :-(
 }
 		
 $req = Sql_Query("select id,title from {$GLOBALS['tables']['template']} order by listorder");
