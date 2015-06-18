@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2.4
+ * submitByMail plugin version 1.0b2.4a
  * 
  *
  * @category  phplist
@@ -40,7 +40,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2.4';
+    public $version = '1.0b2.4a';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -180,7 +180,7 @@ class submitByMailPlugin extends phplistPlugin
 	
 	const ONE_DAY = 86400; 	// 24 hours in seconds
 
-  	function __construct()
+  	public function __construct()
     {
     	if (!function_exists('imap_open') || (strtoupper(substr(php_uname('s'), 0, 3)) == 'WIN') ||
     			!$this->isSecureConnection()) { // Don't have prerequisites
@@ -236,7 +236,7 @@ class submitByMailPlugin extends phplistPlugin
    	
    	// Remove initialization flag into phpList configuration table to prevent
    	// use of plug in after it is found that we do not have the proper prequisites
-   	function uninitialize() {
+   	private function uninitialize() {
    		Sql_Query(sprintf("delete from %s where item ='%s'", $GLOBALS['tables']['config'], 
     					md5('plugin-submitByMailPlugin-initialised')));
    	}     
@@ -250,7 +250,7 @@ class submitByMailPlugin extends phplistPlugin
     // might become open to spammers. The danger is less within mail accounts connected to 
     // a pipe, but still spammers could learn that the account is connected to a mailing list.
     //
-    function isSecureConnection() {
+    private function isSecureConnection() {
     	if ($GLOBALS['commandline']) return true; 	// Command line is internal and secure (pipe 
     												// and cron and assuming SSH if on terminal)
     	if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') return true;
@@ -262,12 +262,12 @@ class submitByMailPlugin extends phplistPlugin
     # Startup code, all other objects are constructed 
     # Returns false when we do not have the prereqs, which means we cannot start
     # Also returns false when not running off a secure connection
-    function activate() {
+    public function activate() {
         return true;
   	}
 
 	// Delete expired messages in escrow
-    function deleteExpired() {
+    private function deleteExpired() {
     	$query = sprintf("select token, file_name from %s where expires < %d", $this->tables['escrow'], time());
     	$result = Sql_Query ($query);
     	while ($row = Sql_Fetch_Row($result)) {
@@ -278,11 +278,11 @@ class submitByMailPlugin extends phplistPlugin
     }
 
   	// Provide complete server name in a form suitable for a SSL/TLS POP call using iMap function
-  	function completeServerName($server) {
+  	private function completeServerName($server) {
   		return '{' . $server . submitByMailGlobals::SERVER_TAIL . '}';
   	}
   	
-  	function getCliPhp() {
+  	private function getCliPhp() {
   		if ($cmd = getConfig("cliPath"))
   			return $cmd;
   		exec('which php-cli', $output);
@@ -292,7 +292,7 @@ class submitByMailPlugin extends phplistPlugin
   		return trim($output[0]);
   	}
   	
-  	function ckPHPversion() {
+  	public function ckPHPversion() {
   		if ($cmd = $this->getCliPhp()) {
   			exec ("$cmd -v", $output);
   			if (preg_match ('/PHP\s*(\d\d?\.\d\d?)/', $output[0], $match))
@@ -302,7 +302,7 @@ class submitByMailPlugin extends phplistPlugin
   	}
   	
   	// Generate a command line PHP command to be used by emailajax.php
-	function makeCliCommand($page) {
+	public function makeCliCommand($page) {
 		if ($cmd = $this->getCliPhp()) {
 			$cmd = $cmd . ' -q ' . dirname(dirname($this->coderoot)) . '/index.php ';
 			$cmd .= '-c' . realpath($GLOBALS["configfile"]) . " -p$page -msubmitByMailPlugin";
@@ -311,7 +311,7 @@ class submitByMailPlugin extends phplistPlugin
 		return '';
 	}
   	
-  	function adminmenu() {
+  	public function adminmenu() {
   		// Adjust what adminMenu returns for different circumstances.
 	   	if (!isSuperUser()) { 
     		// Make sure that only super users get to see the adminMenu.
@@ -325,7 +325,7 @@ class submitByMailPlugin extends phplistPlugin
     	return $this->pageTitles;
 	}
 	
-	function allowMessageToBeQueued($messagedata = array()) {
+	public function allowMessageToBeQueued($messagedata = array()) {
 		if (($this->lid) && ($this->embeddedImage)) 
 			return "Message cannot be sent with unprocessed embedded image.";
     	if (($this->lid) && ($this->subj == '(no subject)')) { 
@@ -336,22 +336,22 @@ class submitByMailPlugin extends phplistPlugin
     	return '';
   	}
 		
-	function generateRandomString($length = 10) {
+	private function generateRandomString($length = 10) {
     	return substr(sha1(mt_rand()), 0, $length);
 	}
 	
-  	function cleanFormString($str) {
+  	public function cleanFormString($str) {
 		return sql_escape(strip_tags(trim($str)));
 	}
 	
 	// Produce button links to pages outside the plugin
-	function outsideLinkButton($name, $desc, $url = '', $extraclass = '',$title = '' ) {
+	public function outsideLinkButton($name, $desc, $url = '', $extraclass = '',$title = '' ) {
 		$str = PageLinkButton($name, $desc, $url, $extraclass, $title);
 		$str = str_replace("&amp;pi=submitByMailPlugin", '', $str);
 		return $str;
 	}
 	
-	function myFormStart($action, $additional) {
+	public function myFormStart($action, $additional) {
 		$html = formStart($additional);
 		preg_match('/action\s*=\s*".*"/Ui', $html, $match);
 		$html = str_replace($match[0], 'action="' . $action .'"', $html);
@@ -359,7 +359,7 @@ class submitByMailPlugin extends phplistPlugin
 	}
     
     // Get an array of the mailing lists with submission address and list id
-    function getTheLists($name='') {
+    public function getTheLists($name='') {
     	global $tables;
     	$A = $tables['list']; 	// Phplist table of lists, including name and id
 		$B = $this->tables['list'];	// My table holds mail submission data for lists
@@ -379,7 +379,7 @@ class submitByMailPlugin extends phplistPlugin
     }
           
     // Get the numberical id of a list from its email submission address
-    function getListID ($email) {
+    public function getListID ($email) {
     	$out = 0;
     	if (preg_match('/<(.*)>/', $email, $match))
 			$email = $match[1];$query = sprintf("select id from %s where submissionadr='%s'", $this->tables['list'], trim($email));
@@ -388,14 +388,14 @@ class submitByMailPlugin extends phplistPlugin
     	return $row[0];
     }
     
-    function getCredentials ($email) {
+    public function getCredentials ($email) {
     	$query = sprintf("select pop3server, password from %s where submissionadr='%s'",
     		$this->tables['list'], $email);
     	return Sql_Fetch_Assoc_Query($query);
     }
     
     // Returns array of connection parameters for the lists receiving messages via POP
-    function getPopData() {
+    public function getPopData() {
     	$out = array();
     	$query = sprintf("select id, pop3server, submissionadr, password from %s where pipe_submission=0",
     		$this->tables['list']);
@@ -405,39 +405,33 @@ class submitByMailPlugin extends phplistPlugin
     	return $out;
     }
         
-    function getSubAdr ($id) {
-    	$query = sprintf ("select submissionadr from %s where id=%d", $this->tables['list'], $id);
-    	$row =  Sql_Fetch_Row_Query($query);
-    	return $row[0];
-    }
-    
     // What to do with messages for a particular list
-    function getDisposition ($id) {
+    private function getDisposition ($id) {
     	$query = sprintf ("select confirm, queue from %s where id=%d", $this->tables['list'], $id);
     	$row = Sql_Fetch_Array_Query($query);
     	if (is_null($row)) return null;
     	return $row[0]? "escrow" : ($row[1]? "queue" : "save"); 
     }
     
-    function doQueueMsg($lid) {
+    public function doQueueMsg($lid) {
     	$query = sprintf ("select queue from %s where id=%d", $this->tables['list'], $lid);
     	$row = Sql_Fetch_Array_Query($query);
     	return $row[0];
     }
     
-    function pipeOK($lid) {
+    public function pipeOK($lid) {
     	$query = sprintf ("select pipe_submission from %s where id=%d", $this->tables['list'], $lid);
     	$row = Sql_Fetch_Array_Query($query);
     	return $row[0];
     }
     
-    function getListTmpltFtr($id) {
+    private function getListTmpltFtr($id) {
     	$query = sprintf ("select template, footer from %s where id=%d", $this->tables['list'], $id);
     	$row = Sql_Fetch_Row_Query($query);
     	return $row;
     }
     
-    function getListAdminAdr($listId) {
+    private function getListAdminAdr($listId) {
     	$A = $GLOBALS['tables']['admin'];
     	$B = $GLOBALS['tables']['list'];
     	$query = sprintf ("select email from %s left join %s on %s.id=%s.owner where %s.id=%d", $A, $B, $A, $B, $B, $listId ); 
@@ -446,7 +440,7 @@ class submitByMailPlugin extends phplistPlugin
 	}
     
     // Get the email addresses of all the admins
-    function getAdminAdrs() {
+    private function getAdminAdrs() {
     	$query = sprintf("select email from %s", $GLOBALS['tables']['admin']);
     	$result = Sql_Query($query);
     	while ($row = Sql_Fetch_Row($result))
@@ -454,7 +448,7 @@ class submitByMailPlugin extends phplistPlugin
     	return $out;
     }
     
-    function getOwnerLids ($email) {
+    private function getOwnerLids ($email) {
     	$out = array();
     	$A = $GLOBALS['tables']['list'];
     	$B = $GLOBALS['tables']['admin'];
@@ -466,7 +460,7 @@ class submitByMailPlugin extends phplistPlugin
     }
     
     // Return addresses of all superusers
-    function getSuperAdrs() {
+    private function getSuperAdrs() {
     	$query = sprintf ("select email from %s where superuser=1", $GLOBALS['tables']['admin']);
     	$res = Sql_query($query);
     	while ($row = Sql_Fetch_Row($res))
@@ -474,19 +468,19 @@ class submitByMailPlugin extends phplistPlugin
     	return $out;
     }
     
-    function getSenderID($sender) {
+    private function getSenderID($sender) {
     	$query = sprintf ("select id from %s where email='%s'", $GLOBALS['tables']['admin'], $sender);
     	$row = Sql_Fetch_Row_Query($query);
     	return $row[0];
 	}
    
-    function std($str) {
+    private function std($str) {
     	return strtolower(trim($str));
     }
     
     // Get out the email address from a string of the form Name<email_address>
     // Modified to show display name of sender
-	function cleanAdr ($adr, $setDisplayName=false) { 
+	public function cleanAdr ($adr, $setDisplayName=false) { 
 		if ($setDisplayName)
 			$this->displayName = ''; 
 		 if (preg_match('/<(.*)>/', $adr, $match)) { 
@@ -498,7 +492,7 @@ class submitByMailPlugin extends phplistPlugin
 	}    
 	
     // Get filename associated with a MIME part if there is one
-    function getFn($apart) {
+    private function getFn($apart) {
     	if (isset($apart->d_parameters['filename']))
     		return $apart->d_parameters['filename'];
     	if (isset($apart->ctype_parameters['name']))
@@ -508,7 +502,7 @@ class submitByMailPlugin extends phplistPlugin
     
     // Check the structure of one mime part of a message.
     // Returns an error code or false if there is no problem.
-    function isBadMime($apart, $lvl) {
+    private function isBadMime($apart, $lvl) {
     	$mimes = $this->allowedMimes;
     	$mains = $this->allowedMain;
     	$c1 = $this->std($apart->ctype_primary); 
@@ -555,7 +549,7 @@ class submitByMailPlugin extends phplistPlugin
     
     // Get the lists addressed by the message. Return an array of submission addresses
     // for the lists we're sending to.
-    function getListsAddressed(&$hdrs) { // A bit more efficient here to call by reference.
+    private function getListsAddressed(&$hdrs) { // A bit more efficient here to call by reference.
     	// First find the submission addresses for our lists
 		$sbmAdrs = array();	
 		$arr = $this->getTheLists();
@@ -575,7 +569,7 @@ class submitByMailPlugin extends phplistPlugin
 		return $listsSentTo;
     }
     
-    function isUnauthorized($from) {
+    private function isUnauthorized($from) {
     	$authSenders[] = $this->getListAdminAdr($this->lid); // Admin for this list
 		// Authorized senders are the list administrator and superusers
 		$isSuperUser = in_array($this->sender, $this->getSuperAdrs());
@@ -602,7 +596,7 @@ class submitByMailPlugin extends phplistPlugin
     //
     // As a side effect this function sets various class properties for the current message
     // such as $this->subj and $this->sender
-    function isBadMessage ($msg, $mbox) {  // Maybe check message and attachment sizes here?
+    private function isBadMessage ($msg, $mbox) {  // Maybe check message and attachment sizes here?
     	$isSuperUser = $isAdmin = 0;
     	$mbox = $this->cleanAdr($mbox);	// The user might screw up the argument in a pipe
     	$decoder = new Mail_mimeDecode($msg);
@@ -663,7 +657,7 @@ class submitByMailPlugin extends phplistPlugin
 	// Hold message for confirmation by the sender
 	// Save msg in the 'escrow' subdirectory and save location and message information
 	// in the Phplist database. 
-	function escrowMsg($msg) {
+	private function escrowMsg($msg) {
 		$tfn = tempnam ($this->escrowdir , "msg" );
 		file_put_contents ($tfn, $msg);
 		$fname = basename($tfn);
@@ -686,7 +680,7 @@ class submitByMailPlugin extends phplistPlugin
 	// a long text message with an html part at the end, following an inline attachment.
 	// For Phplist we separate the text and html messages, and there is nothing that we 
 	// can do if the text and html of the message do not have similar content 
-	function cleanHtml($html) {
+	private function cleanHtml($html) {
 		$html = preg_replace('/^\s*<!doctype[^>]*>\s*$/im', "", $html);
 		$html = preg_replace('#<head[^>]*>.*</head>#imsU', '', $html);
 		$html = preg_replace('#<html.*>|<body.*>#isU', '', $html);
@@ -701,11 +695,11 @@ class submitByMailPlugin extends phplistPlugin
 	// Save the $messagedata array in the database. This code if taken almost verbatim
 	// from the Phplist file sendcore.php. We save the message data only after setting
 	// the message status. Requires the class property $this->mid to be set.
-	function saveMessageData($messagedata) {
+	private function saveMessageData($messagedata) {
 		global $tables;
 		$imageWarning = 
 			'<p style="color:red; font-weight:bold;">Embedded images not allowed in email
-			submissions. Image below cannot be displayed.</p>';
+			submissions. The image below cannot be displayed.</p>';
 		$query = sprintf('update %s  set '
      		. '  subject = ?'
      		. ', fromfield = ?'
@@ -759,7 +753,7 @@ class submitByMailPlugin extends phplistPlugin
 	}
 	
 	// Figure out what is going on with a MIME part and process it accordingly
-	function parseAPart($apart) {
+	private function parseAPart($apart) {
 		global $tables;
 		$c1 = $this->std($apart->ctype_primary); 
     	$c2 = $this->std($apart->ctype_secondary);
@@ -802,7 +796,7 @@ class submitByMailPlugin extends phplistPlugin
 	// Do the actual decoding of bodies of message
 	// Before this function is called, we have already determined that all of the 
 	// message parts are acceptable
-	function decodeMime ($msg) {
+	private function decodeMime ($msg) {
 		$decoder = new Mail_mimeDecode($msg);
 		$params['include_bodies'] = true;
 		$params['decode_bodies']  = true;
@@ -821,7 +815,7 @@ class submitByMailPlugin extends phplistPlugin
 	// corresponds to set of default entries in the database. We do not overwrite these
 	// default data until the message is actually saved. The purpose of the database
 	// access in this method, is merely to acquire a message ID.
-	function loadMessageData ($msg) {
+	private function loadMessageData ($msg) {
 	 	
 	 	// Note that the 'replyto' item appears not to be in use
   		// This item in $messagedata must exist, but it will remain empty
@@ -864,12 +858,12 @@ class submitByMailPlugin extends phplistPlugin
 	}  
 	
 	// Update the status for the current message
-	function updateStatus($status) {
+	private function updateStatus($status) {
 		$query = sprintf("update %s set status='%s' where id=%d", $GLOBALS['tables']['message'], $status, $this->mid);
 		sql_query($query);
 	}
 	
-	function saveDraft($msg) {
+	public function saveDraft($msg) {
 		$msgData = $this->loadMessageData ($msg); 	// Default messagedata['status'] is 'draft'
 
 		// Allow plugins manipulate data or save it somewhere else
@@ -878,7 +872,7 @@ class submitByMailPlugin extends phplistPlugin
 		return $this->saveMessageData($msgData);  	// Return message ID
 	}
 	
-	function queueMsg($msg) {
+	public function queueMsg($msg) {
 		$msgData = $this->loadMessageData ($msg);
 		$this->saveMessageData($msgData);
 
@@ -900,7 +894,7 @@ class submitByMailPlugin extends phplistPlugin
 	// $anAcct is an associative array containing the credentials for the account
 	// $count is an associative array containing the count of the different 
 	// outcomes from the message processing
-	function downloadFromAcct ($anAcct, &$count) {
+	public function downloadFromAcct ($anAcct, &$count) {
 		// Open the default mailbox, i.e., the inbox
 		if ($hndl = imap_open($this->completeServerName($anAcct['pop3server']), 
 			$anAcct['submissionadr'], $anAcct['password'] )){
@@ -926,7 +920,7 @@ class submitByMailPlugin extends phplistPlugin
 	// This function is called for each message as it is received
 	// to determine whether the message should be escrowed or processed immediately
 	// $count is an optional array with the proper items to count the outcomes.
-	function receiveMsg($msg, $mbox, &$count=null) {
+	public function receiveMsg($msg, $mbox, &$count=null) {
 		// If we are processing multiple messages, it's important to reinitialize
 		// the parameters for each message.
 		$this->lid = 0;		
