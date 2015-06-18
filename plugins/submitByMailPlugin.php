@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2.3
+ * submitByMail plugin version 1.0b2.4
  * 
  *
  * @category  phplist
@@ -40,7 +40,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2.3';
+    public $version = '1.0b2.4';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -176,9 +176,10 @@ class submitByMailPlugin extends phplistPlugin
 	private $holdTime;			// Days to hold escrowed message
 	private $textmsg;	// Text version of current message	
 	private $htmlmsg;	// HTML version of current message
+	private $embeddedImage; 	// Flag msg constains embedded image. This is an error
 	
 	const ONE_DAY = 86400; 	// 24 hours in seconds
-  	
+
   	function __construct()
     {
     	if (!function_exists('imap_open') || (strtoupper(substr(php_uname('s'), 0, 3)) == 'WIN') ||
@@ -239,6 +240,7 @@ class submitByMailPlugin extends phplistPlugin
    		Sql_Query(sprintf("delete from %s where item ='%s'", $GLOBALS['tables']['config'], 
     					md5('plugin-submitByMailPlugin-initialised')));
    	}     
+   	
     // Determine if we have a secure https connection.
     // This code was adapted from the comment by temuraru on the Stack Overflow page
     // at http://stackoverflow.com/questions/1175096/how-to-find-out-if-youre-using-https-without-serverhttps
@@ -324,6 +326,8 @@ class submitByMailPlugin extends phplistPlugin
 	}
 	
 	function allowMessageToBeQueued($messagedata = array()) {
+		if (($this->lid) && ($this->embeddedImage)) 
+			return "Message cannot be sent with unprocessed embedded image.";
     	if (($this->lid) && ($this->subj == '(no subject)')) { 
     			//$this->lid is nonzero only if it is this plugin that is processing the
     			//message rather than Phplist's send_core.php
@@ -492,6 +496,7 @@ class submitByMailPlugin extends phplistPlugin
 		} 
 		return trim($adr); 
 	}    
+	
     // Get filename associated with a MIME part if there is one
     function getFn($apart) {
     	if (isset($apart->d_parameters['filename']))
@@ -582,13 +587,13 @@ class submitByMailPlugin extends phplistPlugin
 			/* We should respond to a list owner, even if the message is not sent
 			to lists owned by that person. The code 'unauth' suppresses a response.
 			if (!array_intersect ($this->alids, $owned))
-				return 'unauth';		*/									
+				return 'unauth';					*/			
 			if (array_diff($this->alids, $owned))
 				return 'unauthp';
 		}
 		return false;
 	}
-    
+   
  	// Check if the message is acceptable; $mbox is the address at which the email arrived.
     // We need this so that in case of a submission to multiple lists we can tell
     // which list we are sending this instance of the message to. In such a case we do
@@ -692,12 +697,15 @@ class submitByMailPlugin extends phplistPlugin
 	}
 	
 	/*	The following methods are not useable independently. They have been pulled out
-		out of receiveMsg in order to make the logic clearer and to ease testing.   */
+		out of receiveMsg in order to make the logic clearer and to ease testing.    */
 	// Save the $messagedata array in the database. This code if taken almost verbatim
 	// from the Phplist file sendcore.php. We save the message data only after setting
 	// the message status. Requires the class property $this->mid to be set.
 	function saveMessageData($messagedata) {
 		global $tables;
+		$imageWarning = 
+			'<p style="color:red; font-weight:bold;">Embedded images not allowed in email
+			submissions. Image below cannot be displayed.</p>';
 		$query = sprintf('update %s  set '
      		. '  subject = ?'
      		. ', fromfield = ?'
@@ -715,6 +723,11 @@ class submitByMailPlugin extends phplistPlugin
      		. ', template  =  ?'
      		. ' where id = ?', $tables["message"]);
      	$htmlformatted = ($messagedata["sendformat"] == 'HTML'); 
+     	
+     	if ($this->embeddedImage) {
+     		$messagedata["message"] = $imageWarning . $messagedata["message"];
+     	}
+  		
   		$result = Sql_Query_Params($query, array(
        		$messagedata['subject']
      		, $messagedata['fromfield']
@@ -840,6 +853,7 @@ class submitByMailPlugin extends phplistPlugin
       	$messagedata["sendformat"] = 'HTML';      		
       	if ($this->htmlmsg) {
       		$messagedata["message"] = $this->cleanHtml($this->htmlmsg);
+      		$this->embeddedImage = preg_match('/<img [^>]*src\s*=\s*"cid:/i', $messagedata["message"]); 
       		if ($this->textmsg)
       			$messagedata["textmessage"] = $this->textmsg;
       	} else {
@@ -918,6 +932,7 @@ class submitByMailPlugin extends phplistPlugin
 		$this->lid = 0;		
 		$this->alids = array();
 		$this->sender = $this->subj = '';
+		$this->embeddedImage = false;
 		if ($result = $this->isBadMessage($msg, $mbox)) {
 			if ($result == 'not_ours') return;	// Quit if the current message was not sent to the address of the current list
 			logEvent(sprintf($this->errMsgs[$result], listName($this->lid)));

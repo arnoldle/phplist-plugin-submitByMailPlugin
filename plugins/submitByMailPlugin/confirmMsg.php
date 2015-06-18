@@ -53,7 +53,7 @@ if (isset($_GET['mtk'])) {
 		if ((count($sbm->alids) == 1) && ($doqueue = $sbm->doQueueMsg ($sbm->lid))) {
 			if ($qerr = $sbm->queueMsg($msg)) {
 				$msgid = $sbm->saveDraft($msg);
-				$res = '<p class ="sbmcfm">Your message with the subject \'' . $sbm->subj . 
+				$res .= '<p class ="sbmcfm">Your message with the subject \'' . $sbm->subj . 
 								"' was not queued because of the following error(s):<br \> $qerr"
 								. '</p><p class ="sbmcfm">The message has been saved as a draft.</p>';
 				logEvent("A message with the subject '" . $sbm->subj ."' received but not queued because of a problem.");
