@@ -123,7 +123,7 @@ function getmsgs() {;
 	var i = 0;
 	function mypost() {
 		$('div.panel>div.header>h2').html('Collecting messages from ' + adrs[i] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img style="width:34px; height:34px;" src="images/busy.gif">');
-		$.post("plugins/submitByMailPlugin/sbmajax.php",{job:'getmsgs', cmd:'{{{phpcommand}}}', param:adrs[i]}).done(function(data) {
+		$.post("?page=sbmajax&pi=submitByMailPlugin",{job:'getmsgs', cmd:'{{{phpcommand}}}', param:adrs[i]}).done(function(data) {
 		        var cnt = JSON.parse(data);
 				$.each (cnt, function (itm, val) {
 					if (itm != 'lost') {

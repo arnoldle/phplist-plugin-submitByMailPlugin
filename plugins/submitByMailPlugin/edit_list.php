@@ -92,7 +92,7 @@ if ($row = Sql_Fetch_Assoc_Query($query)) {
 		$queue = '';
 	}
 	$tmplt = $row['template'];
-	$footer = stripslashes($row['footer']); // Magic quotes apparently! :-(
+	$footer = stripslashes($row['footer']);	// Looks like magic quotes are working on the value returned.
 }
 		
 $req = Sql_Query("select id,title from {$GLOBALS['tables']['template']} order by listorder");
@@ -265,7 +265,7 @@ $("#sbmConfigEdit").submit(function( event ) {
 		mynotice('Verifying POP credentials<img style="width:40px; height:40px; display:block; margin-left:auto; margin-right:auto; margin-top: 10px;" src="images/busy.gif">');
 	}
 	
-	$.post( "plugins/submitByMailPlugin/sbmajax.php", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
+	$.post( "?page=sbmajax&pi=submitByMailPlugin", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
 			if (data == 'OK') {
 				if (($("input[name=mdisposal]:checked").val() == "Queue") && ($("input[name=confirm]:checked").val() == "No")) 
 					myconfirm("Are you <strong>absolutely sure</strong> that you want to queue messages mailed in, without confirming with the list administrator?");
