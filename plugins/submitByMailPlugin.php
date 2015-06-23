@@ -227,11 +227,17 @@ class submitByMailPlugin extends phplistPlugin
 
     	parent::__construct();
 	
-    	// Delete escrowed messages that have expired
-    	// Do this here, because we don't want the user to have to set up a cron script
-    	// for this. We don't have the name of the relevant database table until after
-    	// the parent is constructed.
-    	$this->deleteExpired();    		
+    	/* Delete escrowed messages that have expired
+    	   Do this here, because we don't want the user to have to set up a cron script
+    	   for this. We don't have the name of the relevant database table until after
+    	   the parent is constructed. */
+    	
+    	// This class is constructed before the plugin is initialized. Make
+    	// sure we have the 'escrow' table before attempting to delete expired msgs
+    	$res = Sql_Query(sprintf("show tables like '%s'", $this->tables['escrow']));
+    	if (Sql_Num_Rows($res)) {
+    		$this->deleteExpired();
+    	}    
     }
    	
    	// Remove initialization flag into phpList configuration table to prevent
