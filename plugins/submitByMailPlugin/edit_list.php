@@ -39,10 +39,6 @@ if (!isSuperUser()){
 }
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
-if (!file_exists($sbm->coderoot . '.htaccess')) {
-	print(Warn("Cannot process information by ajax because of missing .htaccess file in submitByMailPlugin directory.<br />&nbsp;<br />EXITING.")); 
-	return;
-}
 
 $editid = $_GET['eid'];
 $listArray = $sbm->getTheLists();
