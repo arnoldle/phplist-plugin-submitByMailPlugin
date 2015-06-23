@@ -39,10 +39,6 @@ if (!isSuperUser()){
 }
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
-if (!file_exists($sbm->coderoot . '.htaccess')) {
-	print(Warn("Cannot process information by ajax because of missing .htaccess file in submitByMailPlugin directory.<br />&nbsp;<br />EXITING.")); 
-	return;
-}
 
 $editid = $_GET['eid'];
 $listArray = $sbm->getTheLists();
@@ -265,7 +261,7 @@ $("#sbmConfigEdit").submit(function( event ) {
 		mynotice('Verifying POP credentials<img style="width:40px; height:40px; display:block; margin-left:auto; margin-right:auto; margin-top: 10px;" src="images/busy.gif">');
 	}
 	
-	$.post( "plugins/submitByMailPlugin/sbmajax.php", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
+	$.post( "?pi=submitByMailPlugin&page=sbmajax", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
 			if (data == 'OK') {
 				if (($("input[name=mdisposal]:checked").val() == "Queue") && ($("input[name=confirm]:checked").val() == "No")) 
 					myconfirm("Are you <strong>absolutely sure</strong> that you want to queue messages mailed in, without confirming with the list administrator?");

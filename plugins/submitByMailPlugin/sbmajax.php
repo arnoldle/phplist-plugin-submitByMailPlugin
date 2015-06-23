@@ -35,7 +35,7 @@ require_once dirname(__FILE__) ."/sbmGlobals.php";
 
 // No access except via ajax called by one of the plugin pages.
 if (!isset($_POST['job']) || !isset($_SERVER["HTTP_REFERER"]) || !strpos($_SERVER["HTTP_REFERER"], 'pi=submitByMailPlugin')) die();
-
+ob_clean();
 switch ($_POST['job']) {
 	case 'validate': 
 	case 'verify': 
