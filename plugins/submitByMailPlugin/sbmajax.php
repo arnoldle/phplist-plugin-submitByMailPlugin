@@ -18,7 +18,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  *
@@ -80,12 +80,6 @@ switch ($_POST['job']) {
 			
 			This issue cost me hours of frustration!
 			*/
-			
-			// In the latest version we do load phpList with the ajax calls. The code might
-			// be simpler with an ajax call to collectMsg.php directly instead of calling 
-			// it on the command line through this file. OTOH the organization of 
-			// of things seems simpler if we have all the ajax in this one file.
-			// - AVL 6/23/15
 			$email = trim($_POST['param']);
 			$syscmd = 'unset SERVER_SOFTWARE; ' . trim($_POST['cmd']) . " -e$email";
 			exec ($syscmd, $output);	// $output is an array containing the result counts for the messages processed.

@@ -18,7 +18,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  *
@@ -123,7 +123,7 @@ function getmsgs() {;
 	var i = 0;
 	function mypost() {
 		$('div.panel>div.header>h2').html('Collecting messages from ' + adrs[i] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img style="width:34px; height:34px;" src="images/busy.gif">');
-		$.post("?page=sbmajax&pi=submitByMailPlugin",{job:'getmsgs', cmd:'{{{phpcommand}}}', param:adrs[i]}).done(function(data) {
+		$.post("plugins/submitByMailPlugin/sbmajax.php",{job:'getmsgs', cmd:'{{{phpcommand}}}', param:adrs[i]}).done(function(data) {
 		        var cnt = JSON.parse(data);
 				$.each (cnt, function (itm, val) {
 					if (itm != 'lost') {

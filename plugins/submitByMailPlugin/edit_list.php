@@ -19,7 +19,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
+
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  *
@@ -39,6 +39,10 @@ if (!isSuperUser()){
 }
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
+if (!file_exists($sbm->coderoot . '.htaccess')) {
+	print(Warn("Cannot process information by ajax because of missing .htaccess file in submitByMailPlugin directory.<br />&nbsp;<br />EXITING.")); 
+	return;
+}
 
 $editid = $_GET['eid'];
 $listArray = $sbm->getTheLists();
@@ -88,7 +92,7 @@ if ($row = Sql_Fetch_Assoc_Query($query)) {
 		$queue = '';
 	}
 	$tmplt = $row['template'];
-	$footer = stripslashes($row['footer']);	// Looks like magic quotes are working on the value returned.
+	$footer = stripslashes($row['footer']); // Magic quotes apparently! :-(
 }
 		
 $req = Sql_Query("select id,title from {$GLOBALS['tables']['template']} order by listorder");
@@ -261,7 +265,7 @@ $("#sbmConfigEdit").submit(function( event ) {
 		mynotice('Verifying POP credentials<img style="width:40px; height:40px; display:block; margin-left:auto; margin-right:auto; margin-top: 10px;" src="images/busy.gif">');
 	}
 	
-	$.post( "?page=sbmajax&pi=submitByMailPlugin", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
+	$.post( "plugins/submitByMailPlugin/sbmajax.php", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
 			if (data == 'OK') {
 				if (($("input[name=mdisposal]:checked").val() == "Queue") && ($("input[name=confirm]:checked").val() == "No")) 
 					myconfirm("Are you <strong>absolutely sure</strong> that you want to queue messages mailed in, without confirming with the list administrator?");
