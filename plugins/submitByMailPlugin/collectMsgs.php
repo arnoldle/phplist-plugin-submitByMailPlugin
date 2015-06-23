@@ -33,7 +33,7 @@ $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 $count = array();
 
 if ($GLOBALS['commandline']) { 
-	ob_clean();
+	ob_end_clean();
 	$count['lost'] = $count['error'] = $count['draft'] = $count['queue'] = $count['escrow'] = 0;
 	if (isset($cline['e'])) { // Response to system call sent by ajax server
 		$myarray = array('submissionadr' => $cline[e]);
