@@ -34,31 +34,22 @@ $count = array();
 
 if ($GLOBALS['commandline']) { 
 	ob_end_clean();
-	$count['lost'] = $count['error'] = $count['draft'] = $count['queue'] = $count['escrow'] = 0;
-	if (isset($cline['e'])) { // Response to system call sent by ajax server
-		$myarray = array('submissionadr' => $cline[e]);
-		$myarray = array_merge($myarray,$sbm->getCredentials($cline[e]));
-		$sbm->downloadFromAcct ($myarray, $count);
-		print(json_encode($count));
+	if (getConfig('manualMsgCollection')) { 
+		logEvent("SBM settings forbid attempt at command line message collection");
+		print("SBM settings forbid attempt at command line message collection\n");
 		die();
-	} else { // Command line, but not ajax
-		if (getConfig('manualMsgCollection')) { 
-		logEvent("SBM settings forbid attempt at command line message colledtion");
-		die();
+	}
+	$popAccts = $sbm->getPopData();
+	$count['lost'] = $count['error'] = $count['escrow'] = $count['queue'] = $count['draft'] = 0;
+	logEvent("Beginning POP collection of submitted messages.");
+	foreach ($popAccts as $anAcct) {
+		print($anAcct['submissionadr']  . ": CUMULATIVE COUNTS\n");
+		$sbm->downloadFromAcct ($anAcct, $count);
+		foreach($count as $key => $val) {
+			print("$key: $val\n");
 		}
-		$popAccts = $sbm->getPopData();
-		$count['lost'] = $count['error'] = $count['escrow'] = $count['queue'] = $count['draft'] = 0;
-		logEvent("Beginning POP collection of submitted messages.");
-		foreach ($popAccts as $anAcct) {
-			print($anAcct['submissionadr']  . " CUMULATIVE COUNTS --- ");
-			$sbm->downloadFromAcct ($anAcct, $count);
-			foreach($count as $key => $val) {
-				print("$key: $val");
-				if ($key != 'lost')
-					print(', ');				
-			}
-			print ("\n"); 
-		}
+		print ("\n"); 
+	}
 	$total = 0;
 	foreach ($count as $key => $val) if ($key != 'lost') $total += $val;
 	print ("$total messages processed\n");
@@ -67,22 +58,11 @@ if ($GLOBALS['commandline']) {
 	print("Unsuccessful or interrupted connections: " . $count['lost'] . "\n"); 
 	logEvent("POP: Unsuccessful or interrupted connections: " .  $count['lost']);
 	die();
-	}
 } else {
 
 	if (!isSuperUser()) {
 		print ("<p>You do not have sufficient privileges to view this page.</p>");
 		logEvent("Attempt to collect messages by non-super user.");
-		die();
-	}
-	
-	if (!$sbm->ckPHPversion()) {
-		$alignP = '<p style="text-align:left;">';
-		$info ='<div style="font-size:14px"><p>Unable to access PHP command line binary. <strong>CANNOT COLLECT MESSAGES!</strong></p>';
-		$info .= "{$alignP}You must enter the correct path to the binary into the submitByMailPlugin settings or empty the setting";
-		$info .= " to allow the plugin to find the binary itself.</p>{$alignP}If a command line binary is not available to the plugin,";
-		$info .= ' message collection is NOT possible &mdash; neither through the browser nor on the command line.</p></div>';
-		Warn($info);
 		die();
 	}
 	

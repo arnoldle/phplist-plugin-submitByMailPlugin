@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2.5b
+ * submitByMail plugin version 1.0b2.6
  * 
  *
  * @category  phplist
@@ -40,7 +40,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2.5b';
+    public $version = '1.0b2.6';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -182,8 +182,7 @@ class submitByMailPlugin extends phplistPlugin
 
   	public function __construct()
     {
-    	if (!function_exists('imap_open') || (strtoupper(substr(php_uname('s'), 0, 3)) == 'WIN') ||
-    			!$this->isSecureConnection()) { // Don't have prerequisites
+    	if (!function_exists('imap_open') || !$this->isSecureConnection()) { // Don't have prerequisites
     		$this->uninitialize();
     		parent::__construct();
     		return;
