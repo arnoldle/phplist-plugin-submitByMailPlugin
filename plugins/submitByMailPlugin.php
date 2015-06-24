@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2.5a
+ * submitByMail plugin version 1.0b2.5b
  * 
  *
  * @category  phplist
@@ -40,7 +40,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2.5a';
+    public $version = '1.0b2.5b';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -234,8 +234,7 @@ class submitByMailPlugin extends phplistPlugin
     	
     	// This class is constructed before the plugin is initialized. Make
     	// sure we have the 'escrow' table before attempting to delete expired msgs
-    	$res = Sql_Query(sprintf("show tables like '%s'", $this->tables['escrow']));
-    	if (Sql_Num_Rows($res)) {
+    	if (Sql_Table_Exists($this->tables['escrow'])) {
     		$this->deleteExpired();
     	}    
     }
