@@ -140,7 +140,11 @@ $list = str_replace($ltitle, $newtitle, $list);
 
 $mypanel .= '&nbsp;<br />'.$list . '<br />';
 $mypanel .= $sform . '<br />';
+print '<noscript>';
+print(Warn('<span style="font-weight:bold; font-size:18px;">Without Javascript, email addresses cannot be validated.<br />You must be very sure to enter the correct data for each list you configure.</span>')); 
+print '</noscript>';
 Info('Click on the Name or ID of a Mailing Liste to Configure the List for Email Submission or to Edit Its Submission Configuration.');
 $panel = new UIPanel('<div style="text-align:center;">Configuration for Submission by Email</div>',$mypanel,'');
 print $panel->display();
 print('</form>');
+?>

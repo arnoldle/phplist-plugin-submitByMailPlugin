@@ -70,6 +70,10 @@ if ($GLOBALS['commandline']) {
 		print("<p>You cannot collect messages with your browser when submitByMailPlugin settings do not allow such message collection.</p>");
 		die();
 	}
+	print '<noscript>';
+   	print(Warn('<span style="font-weight:bold; font-size:18px;">Without Javascript, messages cannot be collected manually.<br />You must use a command line script for message collection.</span>')); 
+	print '</noscript>';
+	print('<div id="nojs" style="display:none;">'); // Hide page content if Javascript off
 	Info('<strong style="font-size:16px;">Please do not leave this page while collecting messages.<br />Otherwise you may interrupt message collection.</strong>', 1);
 
 	$content = <<<EOD
@@ -94,6 +98,9 @@ EOD;
 **/
 	$myscript = <<<ESO
 <script type="text/javascript">
+$(function() {
+	$("#nojs").show();
+});
 function getmsgs() {;
 	var adrs = [{{{listadrs}}}];
 	$('.cntval').text('0');
@@ -143,6 +150,7 @@ ESO;
 	}
 	$myscript = str_replace('{{{listadrs}}}', $acctstr, $myscript);
 	print($myscript);
+	print('</div>');
 }
 
 ?>
