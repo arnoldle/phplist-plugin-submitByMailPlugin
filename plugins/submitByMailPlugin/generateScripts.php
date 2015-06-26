@@ -50,16 +50,19 @@ if ($_POST['scriptType']) {
 			$scptname = 'processQueue.sh';
 		}
 		if (substr($dir, -1) != '/') $dir .= '/';
-		file_put_contents($dir . $scptname, $script);
-		chmod ($dir . $scptname, 0755);
-		$info = "<div style='font-size:14px'><p>Script '$scptname' generated and stored in directory: '$dir'</p>";
-		if ($version < submitByMailGlobals::RECPHP) {
-			$info .= "<p><strong>This script uses PHP version $version. This is an earlier version than
+		if ((file_put_contents($dir . $scptname, $script) === false)|| !chmod ($dir . $scptname, 0755)) {
+			Warn('<span style="font-weight:bold; font-size:18px;">Error! Either could not write to specified directory or could not make script executable.</span>'); 
+		} else {
+		
+			$info = "<div style='font-size:14px'><p>Script '$scptname' generated and stored in directory: '$dir'</p>";
+			if ($version < submitByMailGlobals::RECPHP) {
+				$info .= "<p><strong>This script uses PHP version $version. This is an earlier version than
 					version 5.4+ recommended for use with phpList.</strong></p>";
-			$info .= "<p>If a later command line version of PHP is available, you might consider entering the 
+				$info .= "<p>If a later command line version of PHP is available, you might consider entering the 
 					path to that version into the submitByMailPlugin settings and then generating this script again.<p>";
-			$info .= "</div>";
-			Info($info);
+				$info .= "</div>";
+				Info($info);
+			}
 		}
 	} else {
 		$alignP = '<p style="text-align:left;">';
@@ -134,7 +137,7 @@ $("#scptGenForm").submit(function(event) {
 		return false;
 	}
 	event.preventDefault(); 
-	$.post("plugins/submitByMailPlugin/sbmajax.php", {job:'ckdir', directory:dir}, function (data) {
+	$.post( "?pi=submitByMailPlugin&page=sbmajax&ajaxed=1", {job:'ckdir', directory:dir}, function (data) {
 		switch(data) {
 				case 'OK':
 					mysubmit();
@@ -157,3 +160,4 @@ $("#scptGenForm").submit(function(event) {
 </style>
 ESO;
 print ($myscript);
+?>
