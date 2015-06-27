@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2.7a
+ * submitByMail plugin version 1.0b2.8
  * 
  *
  * @category  phplist
@@ -40,7 +40,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2.7a';
+    public $version = '1.0b2.8';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -177,6 +177,7 @@ class submitByMailPlugin extends phplistPlugin
 	private $textmsg;	// Text version of current message	
 	private $htmlmsg;	// HTML version of current message
 	private $embeddedImage; 	// Flag msg constains embedded image. This is an error
+	private $publicScheme;		// phpList does not set public page links from command line pages
 	
 	const ONE_DAY = 86400; 	// 24 hours in seconds
 
@@ -223,6 +224,10 @@ class submitByMailPlugin extends phplistPlugin
     		imap_timeout (IMAP_READTIMEOUT, $this->pop_timeout);
     		imap_timeout (IMAP_WRITETIMEOUT, $this->pop_timeout);
     	}
+    	
+    	// Properly set public scheme; phpList always sets this to 'http' if running
+    	// from command line
+    	$this->publicScheme = defined('PUBLIC_PROTOCOL')? PUBLIC_PROTOCOL : 'https';
 
     	parent::__construct();
 	
@@ -236,7 +241,7 @@ class submitByMailPlugin extends phplistPlugin
     	if (Sql_Table_Exists($this->tables['escrow'])) {
     		$this->deleteExpired();
     	}    
-    }
+	}
    	
    	// Remove initialization flag into phpList configuration table to prevent
    	// use of plug in after it is found that we do not have the proper prequisites
@@ -953,7 +958,7 @@ class submitByMailPlugin extends phplistPlugin
 				case 'escrow':
 					$tokn = $this->escrowMsg($msg);
 					$site = getConfig('website');
-					$cfmlink = $GLOBALS["public_scheme"] . '://' . $site . $GLOBALS["pageroot"]; 
+					$cfmlink = $this->publicScheme . '://' . $site . $GLOBALS["pageroot"]; 
 					$cfmlink .= "/?p=confirmMsg&pi=submitByMailPlugin&mtk=$tokn";
 					$escrowMsg = "A message with the subject '" . $this->subj . "' was received and escrowed.\n\n";
 					$escrowMsg .= "To confirm this message, please click the following link:\n\n" ;
