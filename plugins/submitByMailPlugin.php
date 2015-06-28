@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2.8
+ * submitByMail plugin version 1.0b2.9
  * 
  *
  * @category  phplist
@@ -40,7 +40,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2.8';
+    public $version = '1.0b2.9';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -78,23 +78,30 @@ class submitByMailPlugin extends phplistPlugin
      		'description' => "Complete path to command line PHP binary (leave empty if you don't know it)",
       		'type' => "text",
       		'allowempty' => 1,
-      		'category'=> 'campaign',),
+      		'category'=> 'general',),
       
-    	"escrowHoldTime" => array (
+    	"publicPageProtocol" => array (
+    		'value' => 1,
+    		'description' => "Use 'http' for public page links instead of 'https' (Yes or No)",
+    		'type' => "boolean",
+      		'allowempty' => 1,
+      		'category'=> 'general',), 
+      	
+		"escrowHoldTime" => array (
       		'value' => 1,
      		'description' => 'Days escrowed messages are held before being discarded',
       		'type' => "integer",
       		'allowempty' => 0,
       		"max" => 7,
       		"min" => 1,
-      		'category'=> 'campaign',),
+      		'category'=> 'general',),
       
 		"manualMsgCollection" => array (
     		'value' => 1,
     		'description' => 'Use browser to collect messages submitted by POP (Yes or No)',
     		'type' => "boolean",
       		'allowempty' => 1,
-      		'category'=> 'campaign',), 
+      		'category'=> 'general',), 
       	
       	"popTimeout" => array (
       		'value' => 0,
@@ -103,7 +110,7 @@ class submitByMailPlugin extends phplistPlugin
       		'allowempty' => 1,
       		"max" => 120,
       		"min" => 0,
-      		'category'=> 'campaign',), 
+      		'category'=> 'general',), 
     // Note that the content type of the message must be multipart or text
     // The settings below apply to attachments.
     // Note also that we do not allow multipart attachments.
@@ -112,30 +119,30 @@ class submitByMailPlugin extends phplistPlugin
     		'description' => 'MIME text/subtypes allowed for attachments',
     		'type' => 'text',
     		'allowempty' => 0,
-      		'category' => 'campaign',),
+      		'category' => 'general',),
       		
 		'allowedImageSubtypes' => array(
 			'value' => 'gif, jpeg, pjpeg, tiff, png',
     		'description' => 'image/subtypes allowed for attachments',
     		'type' => 'text',
     		'allowempty' => 1,
-      		'category' => 'campaign',),
+      		'category' => 'general',),
       		
       	"allowedMimeTypes" => array (
     		'value' => 'application/pdf',
     		'description' => 'Additional MIME content-types allowed for attachments',
     		'type' => 'text',
     		'allowempty' => 1,
-      		'category' => 'campaign',),
+      		'category' => 'general',),
       	);
 	
 	// Arrays for the menu system
 	public $pageTitles = array ("configure_a_list" => "Configure a List for Submission by Email",
 								"collectMsgs" => "Collect Messages Submitted by Email",
 								"generateScripts"=> "Generate Scripts for Mailbox Pipes and Cron");
-	public $topMenuLinks = array('configure_a_list' => array ('category' => 'Campaigns'),
-								  'collectMsgs' => array ('category' => 'Campaigns'), 
-								  'generateScripts' => array('category' => 'Campaigns')
+	public $topMenuLinks = array('configure_a_list' => array ('category' => 'config'),
+								  'collectMsgs' => array ('category' => 'campaigns'), 
+								  'generateScripts' => array('category' => 'config')
 								  );	
 	
 	// Properties particular to this plugin  	
@@ -227,7 +234,7 @@ class submitByMailPlugin extends phplistPlugin
     	
     	// Properly set public scheme; phpList always sets this to 'http' if running
     	// from command line
-    	$this->publicScheme = defined('PUBLIC_PROTOCOL')? PUBLIC_PROTOCOL : 'https';
+    	$this->publicScheme = getConfig("publicPageProtocol")? 'http' : 'https';
 
     	parent::__construct();
 	
