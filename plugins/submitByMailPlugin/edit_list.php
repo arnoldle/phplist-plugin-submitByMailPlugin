@@ -38,6 +38,8 @@ if (!isSuperUser()){
 	return;
 }
 
+verifyCsrfGetToken();	// Prevent cross-site request forgery
+
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 
 $editid = $_GET['eid'];
