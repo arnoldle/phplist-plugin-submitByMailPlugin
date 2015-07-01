@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2.9a
+ * submitByMail plugin version 1.0b2.10
  * 
  *
  * @category  phplist
@@ -40,7 +40,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2.9a';
+    public $version = '1.0b2.10';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -235,6 +235,18 @@ class submitByMailPlugin extends phplistPlugin
     	// Properly set public scheme; phpList always sets this to 'http' if running
     	// from command line
     	$this->publicScheme = getConfig("publicPageProtocol")? 'http' : 'https';
+    	
+    	if (!getConfig("manualMsgCollection")) {
+    		// Make sure that we don't show the message collection page if we don't allow
+    		// manual collection of messages, remove that page from the menus.
+    		unset($this->topMenuLinks["collectMsgs"]);
+    		unset($this->pageTitles["collectMsgs"]);
+    	}
+    	
+    	if (!isSuperUser()) { 
+    		// Make sure that only super users get to see the menus.
+    		$this->topMenuLinks = $this->pageTitles = array(); 
+    	}
 
     	parent::__construct();
 	
@@ -328,16 +340,6 @@ class submitByMailPlugin extends phplistPlugin
 	}
   	
   	public function adminmenu() {
-  		// Adjust what adminMenu returns for different circumstances.
-	   	if (!isSuperUser()) { 
-    		// Make sure that only super users get to see the adminMenu.
-    		$this->topMenuLinks = $this->pageTitles = array(); 
-    	} else if (!getConfig("manualMsgCollection")) {
-    			// Make sure that we don't show the message collection page if we don't allow
-    			// manual collection of messages, remove that page from the menus.
-    			unset($this->topMenuLinks["collectMsgs"]);
-    			unset($this->pageTitles["collectMsgs"]);
-    	}
     	return $this->pageTitles;
 	}
 	
