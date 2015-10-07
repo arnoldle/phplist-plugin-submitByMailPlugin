@@ -33,14 +33,19 @@
 // but the form data is actually stored by the page configure_a_list.php
 
 if (!defined('PHPLISTINIT')) die(); ## avoid pages being loaded directly
+$sbm = $GLOBALS['plugins']['submitByMailPlugin'];
+if (!$sbm->isSecureConnection()) {
+
+	Warn($sbm->insecure);
+	return;
+}
+
 if (!isSuperUser()){
 	print ("<p>You do not have sufficient privileges to view this page.</p>");
 	return;
 }
 
 verifyCsrfGetToken();	// Prevent cross-site request forgery
-
-$sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 
 $editid = $_GET['eid'];
 $listArray = $sbm->getTheLists();

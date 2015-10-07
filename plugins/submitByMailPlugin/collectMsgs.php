@@ -30,6 +30,13 @@
 if (!defined('PHPLISTINIT')) die(); // avoid pages being loaded directly
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
+
+if (!$sbm->isSecureConnection()) {
+
+	Warn($sbm->insecure);
+	return;
+}
+
 $count = array();
 
 if ($GLOBALS['commandline']) { 

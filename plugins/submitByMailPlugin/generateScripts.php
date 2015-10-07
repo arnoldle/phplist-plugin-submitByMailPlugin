@@ -34,6 +34,13 @@ if (!defined('PHPLISTINIT')) die(); // avoid pages being loaded directly
 
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 
+if (!$sbm->isSecureConnection()) {
+
+	Warn($sbm->insecure);
+	return;
+
+}
+
 $dir = trim($_POST['directory']);
 
 if ($_POST['scriptType']) {

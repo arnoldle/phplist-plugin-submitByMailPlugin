@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2.10
+ * submitByMail plugin version 1.0b2.11
  * 
  *
  * @category  phplist
@@ -40,7 +40,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2.10';
+    public $version = '1.0b2.11';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -148,6 +148,8 @@ class submitByMailPlugin extends phplistPlugin
 	// Properties particular to this plugin  	
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
   	
+  	public $insecure = '<div style="font-size:18px"><p>You must have a secure connection (https) to access this page.</p></div>';
+  	
   	private $errMsgs = array(
   							"nopipe" => 'Msg discarded: pipe not allowed for this list',
   							"nodecode" => 'Msg discarded: cannot decode',
@@ -190,12 +192,6 @@ class submitByMailPlugin extends phplistPlugin
 
   	public function __construct()
     {
-    	if (!function_exists('imap_open') || !$this->isSecureConnection()) { // Don't have prerequisites
-    		$this->uninitialize();
-    		parent::__construct();
-    		return;
-    	}
-    	
     	$this->coderoot = dirname(__FILE__) . '/submitByMailPlugin/';
 	   	
 	   	$this->escrowdir = $this->coderoot . "escrow/";
@@ -262,13 +258,6 @@ class submitByMailPlugin extends phplistPlugin
     	}    
 	}
    	
-   	// Remove initialization flag into phpList configuration table to prevent
-   	// use of plug in after it is found that we do not have the proper prequisites
-   	private function uninitialize() {
-   		Sql_Query(sprintf("delete from %s where item ='%s'", $GLOBALS['tables']['config'], 
-    					md5('plugin-submitByMailPlugin-initialised')));
-   	}     
-   	
     // Determine if we have a secure https connection.
     // This code was adapted from the comment by temuraru on the Stack Overflow page
     // at http://stackoverflow.com/questions/1175096/how-to-find-out-if-youre-using-https-without-serverhttps
@@ -278,10 +267,13 @@ class submitByMailPlugin extends phplistPlugin
     // might become open to spammers. The danger is less within mail accounts connected to 
     // a pipe, but still spammers could learn that the account is connected to a mailing list.
     //
-    private function isSecureConnection() {
+    public function isSecureConnection() {
     	if ($GLOBALS['commandline']) return true; 	// Command line is internal and secure (pipe 
     												// and cron and assuming SSH if on terminal)
     	if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') return true;
+    	// It seems that $_SERVER['HTTPS'] may not always be set correctly when using Safari
+    	// So check the port as well
+    	if (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == '443') return true;
     	// The following line applies for servers behind a load balancer
 		if (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https' || !empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] == 'on') return true;
 		return false;
@@ -293,7 +285,7 @@ class submitByMailPlugin extends phplistPlugin
     public function activate() {
         return true;
   	}
-
+  	
 	// Delete expired messages in escrow
     private function deleteExpired() {
     	$query = sprintf("select token, file_name from %s where expires < %d", $this->tables['escrow'], time());
@@ -340,6 +332,9 @@ class submitByMailPlugin extends phplistPlugin
 	}
   	
   	public function adminmenu() {
+  		if (!$this->isSecureConnection()) {
+  			return array();
+		}
     	return $this->pageTitles;
 	}
 	
