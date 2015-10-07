@@ -32,14 +32,7 @@ if (!defined('PHPLISTINIT')) die(); // avoid pages being loaded directly
 $sbm = $GLOBALS['plugins']['submitByMailPlugin'];
 
 if (!$sbm->isSecureConnection()) {
-
 	Warn($sbm->insecure);
-	return;
-}
-
-if (!function_exists('imap_open')) {
-
-	Warn($sbm->noimap);
 	return;
 }
 
@@ -47,6 +40,10 @@ $count = array();
 
 if ($GLOBALS['commandline']) { 
 	ob_end_clean();
+	if (!function_exists('imap_open')) {
+		logEvent ("iMap functions not available. Cannot collect messages.");
+		print ("iMap functions not available. Cannot collect messages.");
+	}
 	if (getConfig('manualMsgCollection')) { 
 		logEvent("SBM settings forbid attempt at command line message collection");
 		print("SBM settings forbid attempt at command line message collection\n");
@@ -72,6 +69,11 @@ if ($GLOBALS['commandline']) {
 	logEvent("POP: Unsuccessful or interrupted connections: " .  $count['lost']);
 	die();
 } else {
+
+	if (!function_exists('imap_open')) {
+		Warn($sbm->noimap);
+		return;
+	}
 
 	if (!isSuperUser()) {
 		print ("<p>You do not have sufficient privileges to view this page.</p>");
