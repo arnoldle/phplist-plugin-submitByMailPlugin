@@ -37,6 +37,12 @@ if (!$sbm->isSecureConnection()) {
 	return;
 }
 
+if (!function_exists('imap_open')) {
+
+	Warn($sbm->noimap);
+	return;
+}
+
 $count = array();
 
 if ($GLOBALS['commandline']) { 

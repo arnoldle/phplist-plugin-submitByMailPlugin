@@ -41,6 +41,12 @@ if (!$sbm->isSecureConnection()) {
 
 }
 
+if (!function_exists('imap_open')) {
+
+	Warn($sbm->noimap);
+	return;
+}
+
 $dir = trim($_POST['directory']);
 
 if ($_POST['scriptType']) {

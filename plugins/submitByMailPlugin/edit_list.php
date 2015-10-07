@@ -40,6 +40,12 @@ if (!$sbm->isSecureConnection()) {
 	return;
 }
 
+if (!function_exists('imap_open')) {
+
+	Warn($sbm->noimap);
+	return;
+}
+
 if (!isSuperUser()){
 	print ("<p>You do not have sufficient privileges to view this page.</p>");
 	return;

@@ -149,6 +149,7 @@ class submitByMailPlugin extends phplistPlugin
   	public $escrowdir; 	// Directory for messages escrowed for confirmation
   	
   	public $insecure = '<div style="font-size:18px"><p>You must have a secure connection (https) to access this page.</p></div>';
+  	public $noimap = '<div style="font-size:18px"><p>This plugin is not usable without the PHP iMap extension.</p></div>';
   	
   	private $errMsgs = array(
   							"nopipe" => 'Msg discarded: pipe not allowed for this list',
@@ -332,7 +333,7 @@ class submitByMailPlugin extends phplistPlugin
 	}
   	
   	public function adminmenu() {
-  		if (!$this->isSecureConnection()) {
+  		if (!$this->isSecureConnection() || !function_exists('imap_open')) {
   			return array();
 		}
     	return $this->pageTitles;
