@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2.11.1
+ * submitByMail plugin version 1.0b2.12
  * 
  *
  * @category  phplist
@@ -40,7 +40,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2.11.1';
+    public $version = '1.0b2.12';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -188,6 +188,7 @@ class submitByMailPlugin extends phplistPlugin
 	private $htmlmsg;	// HTML version of current message
 	private $embeddedImage; 	// Flag msg constains embedded image. This is an error
 	private $publicScheme;		// phpList does not set public page links from command line pages
+	public $piname = 'submitByMailPlugin_';	// For use in $pagefooter array index
 	
 	const ONE_DAY = 86400; 	// 24 hours in seconds
 
@@ -280,13 +281,6 @@ class submitByMailPlugin extends phplistPlugin
 		return false;
 	}
 	
-    # Startup code, all other objects are constructed 
-    # Returns false when we do not have the prereqs, which means we cannot start
-    # Also returns false when not running off a secure connection
-    public function activate() {
-        return true;
-  	}
-  	
 	// Delete expired messages in escrow
     private function deleteExpired() {
     	$query = sprintf("select token, file_name from %s where expires < %d", $this->tables['escrow'], time());

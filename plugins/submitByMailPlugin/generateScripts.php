@@ -47,6 +47,64 @@ if (!function_exists('imap_open')) {
 	return;
 }
 
+$pagefooter[$sbm->piname . 'generateScripts'] = <<<ESO
+<script type="text/javascript">
+$(document).ready(function () {
+    $("#mydialog").dialog({
+    		modal: true,
+    		autoOpen: false,
+    		width: 500
+    	}); 
+	$(".ui-dialog-titlebar-close").css("display","none");
+	$(".ui-dialog-content").css("margin", "10px");
+	$(".ui-dialog").css("border","3px solid DarkGray");
+	$(".ui-dialog-content").css("font-size", "18px");
+	});
+
+
+function myalert(msg) {
+	$("#mydialog").html(msg);
+	$("#mydialog").dialog("option",{buttons:{"OK": function() {
+        				$(this).dialog("close");}}});
+    $("#mydialog").dialog("open");
+}
+
+function mysubmit() {
+	var myform = document.getElementById("scptGenForm");
+    myform.submit();
+} 
+
+$("#scptGenForm").submit(function(event) {
+	var dir = $(":input[name='directory']").val();
+	dir = dir.replace(/\s/g, '');
+	if (!dir || 0 === dir.length) {
+		myalert("You must enter a name for the directory where the script will be stored.");
+		return false;
+	}
+	event.preventDefault(); 
+	$.post( "?pi=submitByMailPlugin&page=sbmajax&ajaxed=1", {job:'ckdir', directory:dir}, function (data) {
+		switch(data) {
+				case 'OK':
+					mysubmit();
+				case 'nodir':
+					{
+					myalert('This directory does not exist. Please choose a different directory');
+					break;
+					}
+				case 'nowrite':
+					{
+					myalert ('Cannot write in this directory. Please choose a different directory');
+					break;
+					} 
+		}
+	}, 'text');
+});
+</script>
+<style>
+.ui-dialog{top:30% !important}
+</style>
+ESO;
+
 $dir = trim($_POST['directory']);
 
 if ($_POST['scriptType']) {
@@ -115,62 +173,5 @@ EOD;
 
 $panel = new UIPanel("Generate Scripts", $content); // Selector .panel .header h2
 print($panel->display());
-$myscript = <<<ESO
-<script type="text/javascript">
-$(document).ready(function () {
-    $("#mydialog").dialog({
-    		modal: true,
-    		autoOpen: false,
-    		width: 500
-    	}); 
-	$(".ui-dialog-titlebar-close").css("display","none");
-	$(".ui-dialog-content").css("margin", "10px");
-	$(".ui-dialog").css("border","3px solid DarkGray");
-	$(".ui-dialog-content").css("font-size", "18px");
-	});
 
-
-function myalert(msg) {
-	$("#mydialog").html(msg);
-	$("#mydialog").dialog("option",{buttons:{"OK": function() {
-        				$(this).dialog("close");}}});
-    $("#mydialog").dialog("open");
-}
-
-function mysubmit() {
-	var myform = document.getElementById("scptGenForm");
-    myform.submit();
-} 
-
-$("#scptGenForm").submit(function(event) {
-	var dir = $(":input[name='directory']").val();
-	dir = dir.replace(/\s/g, '');
-	if (!dir || 0 === dir.length) {
-		myalert("You must enter a name for the directory where the script will be stored.");
-		return false;
-	}
-	event.preventDefault(); 
-	$.post( "?pi=submitByMailPlugin&page=sbmajax&ajaxed=1", {job:'ckdir', directory:dir}, function (data) {
-		switch(data) {
-				case 'OK':
-					mysubmit();
-				case 'nodir':
-					{
-					myalert('This directory does not exist. Please choose a different directory');
-					break;
-					}
-				case 'nowrite':
-					{
-					myalert ('Cannot write in this directory. Please choose a different directory');
-					break;
-					} 
-		}
-	}, 'text');
-});
-</script>
-<style>
-.ui-dialog{top:30% !important}
-</style>
-ESO;
-print ($myscript);
 ?>

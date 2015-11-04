@@ -163,18 +163,18 @@ print($panel->display());
 print($dilg);
 print("</form>\n");
 
-print ('<script type="text/javascript">');
-print ("var adrs = " . json_encode($adrsList) . ";\n");
+$str = '<script type="text/javascript">';
+$str .= "var adrs = " . json_encode($adrsList) . ";\n";
 if ($user)
-	print ("var prevvals = true;\n");
+	$str .= "var prevvals = true;\n";
 else
-	print ("var prevvals = false;\n");
+	$str .= "var prevvals = false;\n";
 	
 // The following scripts makes sure that POP credentials can be entered only if the POP 
 // radio button has been pressed. They also validate the form for various issues.
 // The submission address is validated and the POP credentials are verified using ajax.
 // See the page verify.php
-$str = <<<EOS
+$str .= <<<EOS
 $(document).ready(function () {
     toggleFields(); //call this first so we start out with the correct visibility depending on the selected form values
     //this will call our toggleFields function every time the POP or Pipe radio buttons change
@@ -301,5 +301,5 @@ $("#sbmConfigEdit").submit(function( event ) {
 EOS;
 // <style> above is there to allow vertical centering of these modal dialogs. Special thanks to 
 // Mariela Zarate for coming up with this.
-print($str);
+$pagefooter[$sbm->piname . "edit_list"] = $str;
 ?>

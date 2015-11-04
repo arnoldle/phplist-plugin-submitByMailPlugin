@@ -36,7 +36,7 @@ if (isset($_GET['mtk'])) {
 	$res .= $GLOBALS['pagedata']["header"];
 	$res .= "<h3>Confirm Message</h3>";
 	$token = $_GET['mtk'];
-	$query = sprintf("select file_name, sender, subject, listid, listsadressed from %s where token='%s'", $sbm->tables['escrow'], $token);
+	$query = sprintf("select file_name, sender, subject, listid, convert (listsadressed using utf8) from %s where token='%s'", $sbm->tables['escrow'], $token);
 	// Don't need to check for expiration of the message, since an expired message will
 	// already have been removed as the plugin was constructed in order to load this page
 	$result=Sql_Query($query);
@@ -45,10 +45,9 @@ if (isset($_GET['mtk'])) {
 		$sbm->subj = $msgdata['subject'];
 		$sbm->sender = $sbm->cleanAdr($msgdata['sender'], true);
 		$sbm->lid = $msgdata['listid'];
-		$sbm->alids =unserialize($msgdata['listsaddressed']);
+		$sbm->alids =unserialize($msgdata['convert (listsadressed using utf8)']);
 		$fn = $sbm->escrowdir . $msgdata['file_name'];
-		$msg = file_get_contents($sbm->escrowdir . $msgdata['file_name']);
-		
+		$msg = file_get_contents($sbm->escrowdir . $msgdata['file_name']);		
 		$res .= '<div class="sbmcfm">';
 		if ((count($sbm->alids) == 1) && ($doqueue = $sbm->doQueueMsg ($sbm->lid))) {
 			if ($qerr = $sbm->queueMsg($msg)) {

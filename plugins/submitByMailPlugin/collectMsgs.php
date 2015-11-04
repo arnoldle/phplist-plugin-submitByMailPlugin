@@ -88,7 +88,7 @@ if ($GLOBALS['commandline']) {
 	print '<noscript>';
    	print(Warn('<span style="font-weight:bold; font-size:18px;">Without Javascript, messages cannot be collected manually.<br />You must use a command line script for message collection.</span>')); 
 	print '</noscript>';
-	print('<div id="nojs" style="display:none;">'); // Hide page content if Javascript off
+	print('<div id="havejs" style="display:none;">'); // Hide page content if Javascript off
 	Info('<strong style="font-size:16px;">Please do not leave this page while collecting messages.<br />Otherwise you may interrupt message collection.</strong>', 1);
 
 	$content = <<<EOD
@@ -105,6 +105,7 @@ EOD;
 	print($panel->display());
 	print('<div id="mybtn" style="margin-left:22%; margin-top:15px;">'
 	. '<button title="Collect Submitted Messages" onclick="getmsgs()">Collect Messages</button></div>' . "\n");
+	print('</div>');
 
 /**
 	In jQuery v1.7 synchronous Ajax calls are deprecated, and their disappearance is promised
@@ -114,7 +115,7 @@ EOD;
 	$myscript = <<<ESO
 <script type="text/javascript">
 $(function() {
-	$("#nojs").show();
+	$("#havejs").show();
 });
 function getmsgs() {;
 	var adrs = [{{{listadrs}}}];
@@ -164,8 +165,7 @@ ESO;
 		if ($i) $acctstr .= ', ';
 	}
 	$myscript = str_replace('{{{listadrs}}}', $acctstr, $myscript);
-	print($myscript);
-	print('</div>');
+	$pagefooter[$sbm->piname . 'collectMsgs'] = $myscript;
 }
 
 ?>
