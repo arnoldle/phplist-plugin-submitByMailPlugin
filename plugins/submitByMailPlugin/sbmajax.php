@@ -50,11 +50,20 @@ switch ($_POST['job']) {
   		$authhost= '{' . trim($_POST['server']) . submitByMailGlobals::SERVER_TAIL . '}';
 		$pass = trim($_POST['pass']);
 
+		// How do we do the POP login?
+		// First try the entire email address as the user ID, as many hosting services require
 		if ($mbox=@imap_open( $authhost, $user, $pass )) { 	// No warning if imap_open fails!
         	imap_close($mbox);
         	print ("OK");
-    	} else
-        	print ("NO");
+    	} else {
+    		// Login doesn't work with the entire email address; so try only the user name
+    		$ary = explode ('@', $user);
+    		if ($mbox=@imap_open( $authhost, $ary[0], $pass )) {
+        		imap_close($mbox);
+        		print ("OK1");	// Flag both OK and that we need only the user name as the login ID
+    		} else
+        		print ("NO");	// Can't log in either way
+        }
     	exit();
 	
 	case 'getmsgs':

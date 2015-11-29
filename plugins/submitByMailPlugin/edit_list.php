@@ -135,7 +135,7 @@ print('</noscript>');
 print ($sbm->myFormStart(PageURL2('configure_a_list'), 'name="sbmConfigEdit" class="submitByMailPlugin" id="sbmConfigEdit"'));
 
 $mypanel = <<<EOD
-<input type="hidden" name="listid" value=$editid><input type="hidden" name="update" value=0>
+<input type="hidden" name="listid" value=$editid /><input type="hidden" name="update" value=0 /> <input type="hidden" name="nameonly"  value=0 />
 <p><label style="display:inline !important;">Submission by mail allowed:</label> <input type="radio" name="submitOK" value="Yes" $msyes /><label style="display:inline !important;">Yes</label>&nbsp;&nbsp;&nbsp;&nbsp;
 	<input type="radio" name="submitOK" value="No" $msno /><label style="display:inline !important;">No</label>
 </p>
@@ -278,7 +278,9 @@ $("#sbmConfigEdit").submit(function( event ) {
 	}
 	
 	$.post( "?pi=submitByMailPlugin&page=sbmajax&ajaxed=1", {job:myjob, server:srvr, user:sadr, pass:pwd}, function (data) { 
-			if (data == 'OK') {
+			if ((data == 'OK') || (data == 'OK1')){
+				if (data == 'OK1')
+					$("input[name=nameonly]").val(1);
 				if (($("input[name=mdisposal]:checked").val() == "Queue") && ($("input[name=confirm]:checked").val() == "No")) 
 					myconfirm("Are you <strong>absolutely sure</strong> that you want to queue messages mailed in, without confirming with the list administrator?");
 				else

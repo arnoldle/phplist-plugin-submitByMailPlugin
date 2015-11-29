@@ -1,7 +1,7 @@
 <?php
 
 /**
- * submitByMail plugin version 1.0b2.12
+ * submitByMail plugin version 1.0b2.13
  * 
  *
  * @category  phplist
@@ -40,7 +40,7 @@ class submitByMailPlugin extends phplistPlugin
 {
     // Parent properties overridden here
     public $name = 'Submit by Mail Plugin';
-    public $version = '1.0b2.12';
+    public $version = '1.0b2.13';
     public $enabled = false;
     public $authors = 'Arnold Lesikar';
     public $description = 'Allows messages to be submitted to mailing lists by email';
@@ -64,7 +64,8 @@ class submitByMailPlugin extends phplistPlugin
 				"confirm" => array ("tinyint default 1", "Flags email submissions are escrowed for confirmation by submitter"),
 				"queue" => array ("tinyint default 0", "Flags that messages are queued immediately rather than being saved as drafts"),
 				"template" => array("integer default 0", "Template to use with messages submitted to this address"),
-				"footer" => array("text","Footer for a message submitted to this address")
+				"footer" => array("text","Footer for a message submitted to this address"),
+				"nameonly" => array("tinyint default 0", "Flags that only user name is required for POP login, not entire email address")
 			),
 		);  				// Structure of database tables for this plugin
 	
@@ -247,7 +248,16 @@ class submitByMailPlugin extends phplistPlugin
     	}
 
     	parent::__construct();
-	
+    	
+    	// Upgrade table of lists if needed; can only do this after the parent
+    	// has filled in the table name, just as with the escrow table below
+    	$query = sprintf ("show columns from %s like 'nameonly'", $this->tables['list']);
+    	$result = Sql_Query ($query);
+    	if (!Sql_Num_Rows($result)) {
+    		$query = sprintf ("alter table %s add nameonly tinyint default 0", $this->tables['list']);
+    		Sql_Query ($query);
+    	} 
+    		
     	/* Delete escrowed messages that have expired
     	   Do this here, because we don't want the user to have to set up a cron script
     	   for this. We don't have the name of the relevant database table until after
@@ -405,7 +415,7 @@ class submitByMailPlugin extends phplistPlugin
     // Returns array of connection parameters for the lists receiving messages via POP
     public function getPopData() {
     	$out = array();
-    	$query = sprintf("select id, pop3server, submissionadr, password from %s where pipe_submission=0",
+    	$query = sprintf("select id, pop3server, submissionadr, password, nameonly from %s where pipe_submission=0",
     		$this->tables['list']);
     	$result = Sql_Query($query);
     	while ($row = Sql_Fetch_Assoc($result))
@@ -904,8 +914,12 @@ class submitByMailPlugin extends phplistPlugin
 	// outcomes from the message processing
 	public function downloadFromAcct ($anAcct, &$count) {
 		// Open the default mailbox, i.e., the inbox
-		if ($hndl = imap_open($this->completeServerName($anAcct['pop3server']), 
-			$anAcct['submissionadr'], $anAcct['password'] )){
+		if ($anAcct['nameonly']) {
+			$ary = explode('@', $anAcct['submissionadr']);
+			$user = $ary[0];
+		} else
+			$user = $anAcct['submissionadr'];
+		if ($hndl = imap_open($this->completeServerName($anAcct['pop3server']), $user, $anAcct['password'] )){
 			$nm = imap_num_msg($hndl);
 			for ($i = 1; $i <= $nm; $i++) {
 				if (($hdr = imap_fetchheader($hndl, $i)) && ($bdy = imap_body ($hndl, $i))) {
