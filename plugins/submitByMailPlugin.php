@@ -65,7 +65,8 @@ class submitByMailPlugin extends phplistPlugin
 				"queue" => array ("tinyint default 0", "Flags that messages are queued immediately rather than being saved as drafts"),
 				"template" => array("integer default 0", "Template to use with messages submitted to this address"),
 				"footer" => array("text","Footer for a message submitted to this address"),
-				"nameonly" => array("tinyint default 0", "Flags that only user name is required for POP login, not entire email address")
+				"nameonly" => array("tinyint default 0", "Flags that only user name is required for POP login, not entire email address"),
+				"subscribers_can_send" => array ("tinyint default 0", "Subscribers for this list are permitted to send email to the list"),
 			),
 		);  				// Structure of database tables for this plugin
 	
@@ -430,6 +431,17 @@ class submitByMailPlugin extends phplistPlugin
     	if (is_null($row)) return null;
     	return $row[0]? "escrow" : ($row[1]? "queue" : "save"); 
     }
+	
+	private function getAllowSubscribersToSend($id) {
+		//As this column was added later, just check that it exists first. If not, just revert to old behaviour.
+		$columnquery = sprintf ("SELECT * FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s' AND COLUMN_NAME = 'subscribers_can_send'", $GLOBALS['database_name'], $this->tables['list']);
+		$columntestrow = Sql_Fetch_Array_Query($columnquery);
+		if (is_null($columntestrow)) return false;
+		
+    	$query = sprintf ("select subscribers_can_send from %s where id=%d", $this->tables['list'], $id);
+		$row = Sql_Fetch_Array_Query($query);
+		return $row[0]; 
+    }
     
     public function doQueueMsg($lid) {
     	$query = sprintf ("select queue from %s where id=%d", $this->tables['list'], $lid);
@@ -456,6 +468,16 @@ class submitByMailPlugin extends phplistPlugin
     	$row = Sql_Fetch_Row_Query($query);	
 		return $row[0];
 	}
+
+    private function getListSubscribers($listId) {
+	$A = $GLOBALS['tables']['user'];
+        $B = $GLOBALS['tables']['listuser'];
+	$query = sprintf ("select email FROM %s uu left join %s lu on uu.id=lu.userid where lu.listid=%d", $A, $B, $listId );
+        $res = Sql_query($query);
+	while ($row = Sql_Fetch_Row($res))
+                 $out[] = trim($row[0]);
+        return $out;
+    }
     
     // Get the email addresses of all the admins
     private function getAdminAdrs() {
@@ -588,12 +610,19 @@ class submitByMailPlugin extends phplistPlugin
     }
     
     private function isUnauthorized($from) {
-    	$authSenders[] = $this->getListAdminAdr($this->lid); // Admin for this list
+		$thisListAcceptsMessagesFromSubscribers = $this->getAllowSubscribersToSend($this->lid);
+		
+		if ($thisListAcceptsMessagesFromSubscribers) {
+			$subscribers = $this->getListSubscribers($this->lid);
+			if (in_array($this->sender, $subscribers)) return false;
+		}
+		
+		$authSenders[] = $this->getListAdminAdr($this->lid); // Admin for this list
 		// Authorized senders are the list administrator and superusers
 		$isSuperUser = in_array($this->sender, $this->getSuperAdrs());
 		if ($isSuperUser) $isAdmin = 1;			// Can send to all lists
 		else $isAdmin = in_array($this->sender, $this->getAdminAdrs());
-		if (!$isAdmin) return 'unauth';	
+		if (!$isAdmin) return 'unauth'; 
 		if (!$isSuperUser) {					// If not a super user, can send only to own lists
 			$owned = $this->getOwnerLids($this->sender);
 			/* We should respond to a list owner, even if the message is not sent
@@ -604,7 +633,7 @@ class submitByMailPlugin extends phplistPlugin
 				return 'unauthp';
 		}
 		return false;
-	}
+    }
    
  	// Check if the message is acceptable; $mbox is the address at which the email arrived.
     // We need this so that in case of a submission to multiple lists we can tell

@@ -82,6 +82,7 @@ if (isset($_POST['update'])) { // 'Save button clicked
 		}
 		$dispose = $_POST['mdisposal'] == 'Queue'? 1 : 0;
 		$cfm = $_POST['confirm'] == 'Yes'? 1 : 0;
+		$subscansend = $_POST['subscansend'] == 'Yes'? 1 : 0;
 		$nonly = $_POST['nameonly'];
 		if ((isset($_POST['template'])) &&  (is_numeric($_POST['template'])) && ($_POST['template'] > 0))
 			$tmplt = $_POST['template'];
@@ -90,9 +91,9 @@ if (isset($_POST['update'])) { // 'Save button clicked
 		$query = sprintf("select submissionadr from %s where id=%d",$sbm->tables['list'], $listid);
 		if (!Sql_Num_Rows(Sql_Query($query))) {	// Sql_Query is supposed to return false when a query fails
 												// It does not seem to do that here.
-			$query = sprintf("insert into %s values (%d, '%s', '%s', '%s', %d, %d, %d, %d, '%s', %d)", $sbm->tables['list'], $listid, $server, $subadr, $pass, $method, $cfm, $dispose, $tmplt, $ftr, $nonly);
+			$query = sprintf("insert into %s values (%d, '%s', '%s', '%s', %d, %d, %d, %d, '%s', %d, %d)", $sbm->tables['list'], $listid, $server, $subadr, $pass, $method, $cfm, $dispose, $tmplt, $ftr, $nonly, $subscansend);
 		} else {
-			$query = sprintf("update %s set pop3server='%s', submissionadr='%s', password='%s', pipe_submission=%d, confirm=%d, queue=%d, template=%d, footer='%s', nameonly=%d where id=%d", $sbm->tables['list'], $server, $subadr, $pass, $method, $cfm, $dispose, $tmplt, $ftr, $nonly, $listid);
+			$query = sprintf("update %s set pop3server='%s', submissionadr='%s', password='%s', pipe_submission=%d, confirm=%d, queue=%d, template=%d, footer='%s', nameonly=%d, subscribers_can_send=%d where id=%d", $sbm->tables['list'], $server, $subadr, $pass, $method, $cfm, $dispose, $tmplt, $ftr, $nonly, $subscansend, $listid);
 		}
 		if (!Sql_Query($query)) {
 			$ln = listName($listid);
