@@ -60,8 +60,8 @@ foreach ($listArray as $val)
 	if ($val[1]) $adrsList[$val[1]] = $val[0];
 	
 // Set up defaults for form
-$eml = $user = $pass = $msyes = $pipe = $cfmno = $queue = '';
-$save = $pop = $cfmyes = $msno = $ckd = 'checked';
+$eml = $user = $pass = $msyes = $pipe = $cfmno = $queue = $subscansendyes = '';
+$save = $pop = $cfmyes = $msno = $ckd = $subscansendno ='checked';
 $tmplt = 0;
 $footer = getConfig('messagefooter');
 
@@ -99,6 +99,13 @@ if ($row = Sql_Fetch_Assoc_Query($query)) {
 	} else {
 		$save = $ckd;
 		$queue = '';
+	}
+	if ($row['subscribers_can_send']) {
+		$subscansendyes = $ckd;
+		$subscansendno = '';
+	} else {
+		$subscansendno = $ckd;
+		$subscansendyes = '';
 	}
 	$tmplt = $row['template'];
 	$footer = stripslashes($row['footer']); // Magic quotes apparently! :-(
@@ -151,7 +158,9 @@ style="width:125px !important; display:inline !important;" value="$pass" maxleng
 <label style="display:inline !important;">What to do with submitted message:</label>&nbsp;&nbsp;<input type="radio" name="mdisposal" 
 value="Save" $save /><label style="display:inline !important;">Save</label>&nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="mdisposal" value="Queue" $queue /><label style="display:inline !important;">Queue</label>
 <br /><br /><label style="display:inline !important;">Confirm submission:</label>&nbsp;&nbsp;<input type="radio" name="confirm" value="Yes" $cfmyes /><label style="display:inline !important;">Yes</label>&nbsp;&nbsp;&nbsp;&nbsp;
-<input type="radio" name="confirm" value="No" $cfmno /><label style="display:inline !important;">No</label>$template_form $footer_form
+<input type="radio" name="confirm" value="No" $cfmno /><label style="display:inline !important;">No</label>
+<br /><br /><label style="display:inline !important;">List subscribers can send mail to list:</label>&nbsp;&nbsp;<input type="radio" name="subscansend" value="Yes" $subscansendyes /><label style="display:inline !important;">Yes</label>&nbsp;&nbsp;&nbsp;&nbsp;
+<input type="radio" name="subscansend" value="No" $subscansendno /><label style="display:inline !important;">No</label>$template_form $footer_form
 <input class="submit" type="submit" name="submitter" value="Save" />
 EOD;
 
